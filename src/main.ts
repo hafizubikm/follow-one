@@ -41,14 +41,21 @@ app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
 
 // Which sound each cue plays (SPEC §10).
 function playCue(event: GameEvent): void {
-  if (event.type === 'countdown') sfx.play('tick');
-  else if (event.type === 'finalTick') sfx.play('softTick');
-  else if (event.type === 'answer') sfx.play(event.correct ? 'correct' : 'incorrect');
-  else if (event.type === 'collision') {
-    if (config.collisionClicks) sfx.play('collision');
-  } else if (event.state === 'TARGET_INTRO') sfx.play('chime');
-  else if (event.state === 'TRACKING') sfx.play('go');
-  else if (event.state === 'TRACKING_COMPLETE') sfx.play('freeze');
+  switch (event.type) {
+    case 'countdown':
+      return sfx.play('tick');
+    case 'finalTick':
+      return sfx.play('softTick');
+    case 'answer':
+      return sfx.play(event.correct ? 'correct' : 'incorrect');
+    case 'collision':
+      if (config.collisionClicks) sfx.play('collision');
+      return;
+    case 'enter':
+      if (event.state === 'TARGET_INTRO') sfx.play('chime');
+      else if (event.state === 'TRACKING') sfx.play('go');
+      else if (event.state === 'TRACKING_COMPLETE') sfx.play('freeze');
+  }
 }
 
 const session = createSession({ strict: import.meta.env.DEV, reducedMotion, onEvent: playCue });

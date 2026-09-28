@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "preview", "--", "--port", "4173", "--strictPort"],
       "port": 4173
+    },
+    {
+      "name": "dist-subpath",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4174", "--bind", "127.0.0.1"],
+      "port": 4174
     }
   ]
 }

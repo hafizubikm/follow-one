@@ -16,11 +16,12 @@ export function startLoop(stepMs: number, maxFrameMs: number, handlers: LoopHand
   let last: number | undefined;
 
   const frame = (now: number) => {
+    // Scheduled first, so one frame that throws can't stop the game for good.
+    requestAnimationFrame(frame);
     const steps = last === undefined ? 0 : clock.advance(now - last);
     last = now;
     for (let i = 0; i < steps; i++) handlers.step();
     handlers.render(clock.alpha);
-    requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }

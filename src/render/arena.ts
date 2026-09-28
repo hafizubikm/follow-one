@@ -75,7 +75,7 @@ export function createArena(count: number = config.ballCount): Arena {
   return {
     el: arena,
     render(view) {
-      layer.hidden = view === null;
+      if (layer.hidden !== (view === null)) layer.hidden = view === null;
       if (!radiusPx) radiusPx = arena.clientWidth / 2;
       const opacity = view ? String(view.slotNumbers) : '0';
       if (opacity !== numbersOpacity) {

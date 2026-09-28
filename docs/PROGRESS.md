@@ -206,3 +206,63 @@
 ### Known issues / notes
 - Parallel headless runs can collide on a DevTools port (one bogus 360×740 row; a solo rerun was correct).
 - Sound was verified by scheduling, not by ear: the headless browser has no audible output.
+
+## 2026-09-29 — Phase 7: Acceptance
+
+### Done
+- Walked SPEC §14 against the production build (`npm run build`, served by `vite preview`), keyboard only, three rounds (correct, correct, wrong), plus the checks from phases 2–6.
+- Fixes from the walk:
+  - `loop.ts` now requests the next frame before stepping and rendering, so one frame that throws can't stop the game for good.
+  - The cue→sound mapping in `main.ts` is a switch.
+  - The arena no longer rewrites the ball layer's `hidden` every frame.
+- `.claude/launch.json`: a `dist-subpath` server (python `http.server` on 4174 at the repo root) for checking the build under `/dist/`.
+
+### SPEC §14 checklist
+Flow
+- [x] Start screen works; Start Game begins a round — mouse and keyboard (Tab → Start Game → Enter), production build.
+- [x] Target shown highlighted and named before the countdown — "Your target is **X**", coral ★ + label, every round.
+- [x] 3-2-1-GO works; motion starts on GO — HUD timeline to the step (phase 4) and unit tests.
+- [x] Timer counts 15 → 1 and freezes at 0 — HUD timeline and view tests.
+- [x] Balls glide to the ring, slot numbers appear, exactly one ball can be picked — session tests; browser (second pick ignored).
+- [x] Input locks after the pick; "Checking..." shows; reveal follows the delay — browser + tests.
+- [x] Correct and incorrect results display with the right copy and highlights — rounds 1–3: "🎯 Nailed it! You found Alpha." / "👀 Not quite! You picked Eta (#8). Alpha was #7.", ✓ / ★ / ✕ looks.
+- [x] Score, streak, best, accuracy, round update correctly — after correct, correct, wrong: Round 3 · Score 225 · Accuracy 67% · Streak 0 · Best 2 (100 + 125, then a miss).
+- [x] Play Again starts a fresh round with a new random target — Enter on the focused Play Again; targets Alpha, Xi, Alpha (repeats allowed, §2.4).
+
+Fairness
+- [x] Highlight fully gone by `revealHoldMs + revealFadeMs`, never back before REVEAL — step-by-step view test through selection.
+- [x] Nothing in the DOM/CSS distinguishes the target during motion, returning or selection — markup compared with every other ball after the fade, mid-glide and in selection, all 3 rounds of the production run (plus 5 + 3 dev runs); computed styles equal too. A Chrome `style=""` leak was found and fixed in phase 4.
+- [x] Spawn positions never ring slots; slots only at the freeze — tests (2 000 rounds, slot null until RETURNING, slots = assignment of the frozen positions).
+- [x] `physics/` has no reference to the target — source-scan test, plus `Body` carries no id or name.
+- [x] Target, names, positions, velocities re-randomized every round — 15 000-round uniformity tests.
+
+Physics
+- [x] Balls move continuously, bounce, collide and push — tests + debug free-run + every round.
+- [x] No ball escapes, sticks, stops dead or runs away — invariants after every step over 120 000 steps; roam test.
+- [x] Smooth ~60 fps — 60 fps, frame p95 16.7 ms at 390×844, also with 4× CPU throttle (headless; not measured on a physical phone or laptop GPU).
+- [x] Hidden tab pauses; resize/rotate rescales — another tab in front for 3 s: timer held at 13 and balls didn't move, then the round continued (13 → 12). Resizing 1024×768 → 600×900 mid-round: arena 568 px, balls inside, no overflow.
+
+Settings and accessibility
+- [x] Themes work and persist, no flash — Dark chosen, page reloaded: `data-theme="dark"`, Dark pressed; the inline theme script precedes the stylesheet.
+- [x] Sound toggle works and persists; nothing plays while off; audio unlocks on the first click — trusted click with the autoplay exemption off: context running, cues on time; after "Sound off", a whole round scheduled 0 oscillators.
+- [x] Keyboard-only play works for every step but tracking; focus always visible — whole production run by keyboard; focus ring on balls, Play Again, header controls.
+- [x] HUD messages announced via the live region — one polite region, written only on change; the accessibility tree shows it per stage.
+- [x] Reduced motion removes decorative animation and stays playable — no animation runs; the glide is shortened; the balls still move.
+- [x] Every color state has a glyph or label — ★ ✓ ✕, outlines and names; the view tests pin looks per state.
+
+Layout
+- [x] No horizontal scrolling on any screen size — 13 viewports from 320×568 to 1920×1080, at start/intro/selection/result: overflow 0.
+- [x] Balls visible and tappable (≥ 44 px hit area) on mobile — hit ≥ 44 px at every size; taps hit the ball under the finger even where hit areas overlap (568×320: 28 px apart).
+- [x] Desktop arena centered and the primary visual element — screenshots at 1024–1920 px.
+
+Code
+- [x] All Vitest tests pass — 144.
+- [x] Modules as in §0, no giant file, no tunables outside `config.ts` — the tree matches §0 file for file. The largest file is 220 lines. A literal audit finds only unit conversions, formula constants, safety guards, and presentation constants beside the code that draws them (sound recipes per §10, label placement, decorative animation timing).
+
+### Also verified
+- The production build runs from `http://127.0.0.1:4174/dist/` and from `file://…/dist/index.html`: styled, one deferred classic script, a round starts and balls move, no console errors.
+
+### Known issues / notes
+- 60 fps and sound were verified in headless Chrome (timing and scheduling), not on a physical phone or by ear.
+- SPEC §9's optional best-streak persistence is not implemented (see phase 5).
+- Landscape phones: small arena by design (215 px at 812×375); neighbouring hit areas overlap slightly and resolve to the nearest ball.
