@@ -9,6 +9,8 @@ export interface Arena {
   render(view: ArenaView | null): void;
   /** The id of the ball an event landed on, or null. Ids live in this map, never in the DOM. */
   ballAt(target: EventTarget | null): number | null;
+  /** The id of the ball whose center is nearest a viewport point. */
+  nearestBall(clientX: number, clientY: number): number | null;
 }
 
 interface BallElement {
@@ -94,6 +96,19 @@ export function createArena(count: number = config.ballCount): Arena {
     ballAt(target) {
       const button = target instanceof Element ? target.closest('.ball') : null;
       return button ? (ids.get(button) ?? null) : null;
+    },
+    nearestBall(clientX, clientY) {
+      let nearest: number | null = null;
+      let best = Infinity;
+      balls.forEach((ball, id) => {
+        const box = ball.el.getBoundingClientRect();
+        const distance = Math.hypot(box.left + box.width / 2 - clientX, box.top + box.height / 2 - clientY);
+        if (distance < best) {
+          best = distance;
+          nearest = id;
+        }
+      });
+      return nearest;
     },
   };
 }

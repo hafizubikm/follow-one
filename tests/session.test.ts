@@ -58,8 +58,9 @@ describe('session: into the round', () => {
   });
 
   it('cues the countdown beats, GO, the final seconds and the freeze on the simulation clock', () => {
-    const { events, runUntil, clock } = started();
+    const { events: all, runUntil, clock } = started();
     runUntil('TRACKING_COMPLETE');
+    const events = all.filter(({ event }) => event.type !== 'collision'); // checked separately below
     const introEnd = steps(config.introMs);
     const countdownEnd = introEnd + steps(config.countdownFrom * config.countdownStepMs);
     const trackingEnd = countdownEnd + steps(config.trackingMs);
@@ -80,6 +81,19 @@ describe('session: into the round', () => {
       })),
       { at: trackingEnd, event: { type: 'enter', state: 'TRACKING_COMPLETE' } },
     ]);
+  });
+
+  it('cues collisions during tracking only', () => {
+    const { events, runUntil } = started();
+    runUntil('RETURNING');
+    const trackingStart = events.find(({ event }) => event.type === 'enter' && event.state === 'TRACKING')!.at;
+    const trackingEnd = events.find(({ event }) => event.type === 'enter' && event.state === 'TRACKING_COMPLETE')!.at;
+    const hits = events.filter(({ event }) => event.type === 'collision');
+    expect(hits.length).toBeGreaterThan(0);
+    for (const { at } of hits) {
+      expect(at).toBeGreaterThan(trackingStart);
+      expect(at).toBeLessThanOrEqual(trackingEnd);
+    }
   });
 
   it('interpolates render positions between the last two steps', () => {

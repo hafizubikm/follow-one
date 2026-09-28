@@ -14,8 +14,12 @@ const ringSteps: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowDown: 
  */
 export function wireSelection(arena: Arena, handlers: SelectionHandlers): void {
   arena.el.addEventListener('click', (event) => {
-    const id = arena.ballAt(event.target);
-    if (id !== null && handlers.canPick()) handlers.pick(id);
+    const hit = arena.ballAt(event.target);
+    if (hit === null || !handlers.canPick()) return;
+    // A pointer click (detail > 0) goes to the nearest ball, so overlapping hit areas on a small
+    // arena resolve by distance rather than by stacking order; Enter/Space keep the focused ball.
+    const id = event.detail > 0 ? (arena.nearestBall(event.clientX, event.clientY) ?? hit) : hit;
+    handlers.pick(id);
   });
 
   arena.el.addEventListener('keydown', (event) => {

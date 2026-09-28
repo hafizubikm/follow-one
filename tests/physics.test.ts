@@ -128,6 +128,16 @@ describe('ball–ball collisions', () => {
     expect([a.vx, b.vx]).toEqual([-0.3, 0.3]);
   });
 
+  it('counts collisions: approaching pairs only', () => {
+    expect(resolveCollisions([body(-0.08, 0, 0.45, 0), body(0.08, 0, -0.45, 0)])).toBe(1);
+    expect(resolveCollisions([body(-0.05, 0, -0.3, 0), body(0.05, 0, 0.3, 0)])).toBe(0); // already parting
+    expect(resolveCollisions([body(-0.5, 0, 0.45, 0), body(0.5, 0, -0.45, 0)])).toBe(0); // apart
+    let total = 0;
+    const bodies: Body[] = createRound().balls;
+    for (let i = 0; i < 1_200; i++) total += stepWorld(bodies, dt, config);
+    expect(total).toBeGreaterThan(0);
+  });
+
   it('separates balls with coincident centers along a random direction', () => {
     const a = body(0.2, 0.2, 0, 0);
     const b = body(0.2, 0.2, 0, 0);

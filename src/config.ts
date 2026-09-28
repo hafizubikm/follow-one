@@ -38,6 +38,10 @@ export const config = {
   arenaMaxPx: 640, // desktop cap on the arena diameter (§4)
   minHitPx: 44, // smallest ball hit area (§5)
 
+  // sound
+  collisionClicks: false, // optional collision clicks (§10)
+  collisionClicksPerSecond: 6,
+
   score: { correct: 100, streakBonus: 25 },
   storageKeys: { theme: 'followone.theme', sound: 'followone.sound', best: 'followone.best' },
 } as const;

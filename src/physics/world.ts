@@ -20,18 +20,20 @@ export interface PhysicsParams {
 const COINCIDENT = 1e-9;
 const STOPPED = 1e-9;
 
-/** Advances every body by dt seconds (SPEC §6 step order). */
-export function stepWorld(bodies: Body[], dt: number, params: PhysicsParams, random: () => number = Math.random): void {
+/** Advances every body by dt seconds (SPEC §6 step order); returns how many collisions happened. */
+export function stepWorld(bodies: Body[], dt: number, params: PhysicsParams, random: () => number = Math.random): number {
   for (const b of bodies) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
   }
   for (const b of bodies) keepInArena(b);
+  let collisions = 0;
   for (let pass = 0; pass < params.collisionPasses; pass++) {
-    resolveCollisions(bodies, random);
+    collisions += resolveCollisions(bodies, random);
     for (const b of bodies) keepInArena(b);
   }
   for (const b of bodies) regulateSpeed(b, params, random);
+  return collisions;
 }
 
 /** Puts a body that crossed the wall back on it and reflects it if it is still heading out. */
@@ -49,8 +51,12 @@ export function keepInArena(b: Body): void {
   }
 }
 
-/** One pass over every pair: separate overlaps equally, then exchange the normal velocity (equal mass, elastic). */
-export function resolveCollisions(bodies: Body[], random: () => number = Math.random): void {
+/**
+ * One pass over every pair: separate overlaps equally, then exchange the normal velocity (equal mass,
+ * elastic). Returns the number of approaching pairs, i.e. collisions.
+ */
+export function resolveCollisions(bodies: Body[], random: () => number = Math.random): number {
+  let collisions = 0;
   for (let i = 0; i < bodies.length; i++) {
     const a = bodies[i];
     for (let j = i + 1; j < bodies.length; j++) {
@@ -84,9 +90,11 @@ export function resolveCollisions(bodies: Body[], random: () => number = Math.ra
         a.vy -= s * ny;
         b.vx += s * nx;
         b.vy += s * ny;
+        collisions++;
       }
     }
   }
+  return collisions;
 }
 
 /** Eases |v| toward baseSpeed, then clamps it to the band, keeping the direction. */

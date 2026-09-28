@@ -11,7 +11,8 @@ export type GameEvent =
   | { readonly type: 'enter'; readonly state: GameState }
   | { readonly type: 'countdown'; readonly value: number }
   | { readonly type: 'finalTick'; readonly secondsLeft: number }
-  | { readonly type: 'answer'; readonly correct: boolean };
+  | { readonly type: 'answer'; readonly correct: boolean }
+  | { readonly type: 'collision' };
 
 export interface SessionOptions {
   /** Throw on an illegal transition (development). */
@@ -171,7 +172,7 @@ export function createSession(options: SessionOptions, settings: Config = config
       rememberPositions();
       const state = machine.state;
       const before = machine.elapsedMs;
-      if (state === 'TRACKING' && round) stepWorld(round.balls, dt, settings);
+      if (state === 'TRACKING' && round && stepWorld(round.balls, dt, settings) > 0) emit({ type: 'collision' });
       machine.tick();
       if (machine.state === state) cuesBetween(state, before, machine.elapsedMs);
       if (machine.state === 'RETURNING' && machine.durationMs) placeGliding(machine.elapsedMs / machine.durationMs);

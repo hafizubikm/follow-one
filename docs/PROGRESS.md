@@ -160,3 +160,49 @@
 ### Known issues / notes
 - At 812×375 the ring slots are ~38 px apart, so neighbouring 44 px hit areas still overlap slightly (phase 6).
 - The test harness must target `.start-card .button-primary`: Play Again also uses `.button-primary` and comes earlier in the DOM.
+
+## 2026-09-29 — Phase 6: Polish (sound, reduced motion, a11y, mobile QA)
+
+### Done
+- Sound (`audio/sfx.ts`): synthesized with Web Audio (oscillator + gain envelope), no files. The audio context is created and resumed from the Start Game click, and also on Play Again and when sound is switched on. Cues:
+  - reveal chime when the target is revealed (TARGET_INTRO);
+  - tick on each countdown numeral, then GO;
+  - a soft tick on each of the last 5 s, then freeze;
+  - at REVEAL, a rising C–E–G–C arpeggio or a soft falling low tone.
+  Nothing is scheduled while off, and switching off silences what's still ringing. Sounds are dropped (not queued) if the context never starts. The context factory is injectable, so all of this is unit-tested with a fake.
+- Optional collision clicks: physics now returns its collision count; the session emits a cue; `config.collisionClicks` (default false) gates it, and sfx throttles to `collisionClicksPerSecond`.
+- Taps resolve to the nearest ball center, so the slightly overlapping 44 px hit areas on small landscape arenas pick the ball under the finger; Enter/Space keep the focused ball.
+- Accessible names no longer carry stray spaces next to aria-hidden emoji (the gap is CSS margin now), e.g. region "Not quite!", term "Streak".
+- The arena doesn't select text or open the touch callout on quick taps.
+- Tests (144): sound unlock/off/silence/resume/drop/throttle and per-cue recipes; physics collision counting; collision cues only during tracking.
+
+### Spec edits
+- §10: when each effect plays (the "reveal chime" marks the target reveal at TARGET_INTRO, the spec's "reveal window"; REVEAL has correct/incorrect); recipes live in `audio/sfx.ts` like the palette lives in CSS; Play Again and switching sound on resume audio; switching off silences; failed contexts drop sounds. §5: nearest-center picking where hit areas overlap. §11: new keys `collisionClicks: false`, `collisionClicksPerSecond: 6` (the §10 values).
+
+### Verified in the browser (headless Chrome over the DevTools protocol)
+- Sound, with Chrome's autoplay exemption turned off and a trusted click on Start: the context is `running`, and oscillator starts line up with the round:
+  - chime ×2 partials at 0.2 s;
+  - ticks at 2.6 / 3.6 / 4.6 s, GO ×2 at 5.6 s;
+  - soft ticks at 15.6–19.6 s, freeze at 20.6 s;
+  - the incorrect tone at REVEAL.
+  After clicking the toggle to "Sound off", a whole second round scheduled 0 oscillators.
+- Reduced motion: no CSS or Web Animation runs anywhere in a round (pulse, numeral pop, timer pulse, reveal pop, result bounce, arena fade all off); the target halo is static; balls still move; glide + settle = 899 ms vs 1299 ms normally.
+- Accessibility tree per stage: named header controls with `aria-pressed`; balls absent from the tree during motion; 15 "Ball N" buttons in selection; `disabled` during checking with focus kept; the result region named by the verdict; Play Again described by the sub-line; the live region carries each instruction.
+- Mobile/desktop sweep, a full round each: 320×568, 360×740, 375×812, 390×844, 412×915, 568×320, 667×375, 812×375, 844×390, 768×1024, 1280×800, 1440×900, 1920×1080. At every size:
+  - zero horizontal overflow at start, intro, selection and result;
+  - the target's name label and all slot numbers stay on screen;
+  - hit areas ≥ 44 px;
+  - a tap on ball 5's center picks Ball 5 (at 568×320 neighbours are only 28 px apart);
+  - at RESULT the card is fully visible and the arena whole.
+  Portrait phones ≥ 375 px wide need no scroll; the rest scroll 14–146 px.
+- Performance at 390×844: 60 fps with frame p95 16.7–16.8 ms, both unthrottled and with 4× CPU throttling; ~1.3 ms main-thread work per frame (script 0.12 ms, style 1.2 ms, layout 0).
+
+### SPEC §14 items touched
+- Verified: sound toggle works and persists, nothing plays while off, audio unlocks on the first click; keyboard-only play through every step with visible focus; HUD messages go through the live region; reduced motion removes decorative animation and stays playable; no horizontal scrolling at 13 sizes; balls visible and tappable (≥ 44 px) on mobile; smooth ~60 fps (headless, incl. 4× throttle — not measured on a physical phone).
+
+### Deferred
+- Phase 7: walk the whole §14 checklist, re-check the production build from `file://` and a subpath.
+
+### Known issues / notes
+- Parallel headless runs can collide on a DevTools port (one bogus 360×740 row; a solo rerun was correct).
+- Sound was verified by scheduling, not by ear: the headless browser has no audible output.

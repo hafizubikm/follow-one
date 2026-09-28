@@ -8,7 +8,7 @@ import './styles/screens.css';
 import { createSfx } from './audio/sfx.ts';
 import { config } from './config.ts';
 import { startDebug } from './debug.ts';
-import { createSession } from './game/session.ts';
+import { createSession, type GameEvent } from './game/session.ts';
 import type { GameState } from './game/stateMachine.ts';
 import { arenaView, hudView, resultView } from './game/view.ts';
 import { wireSelection } from './input/selection.ts';
@@ -39,13 +39,19 @@ const app = document.getElementById('app');
 if (!app) throw new Error('index.html is missing #app');
 app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
 
-const session = createSession({
-  strict: import.meta.env.DEV,
-  reducedMotion,
-  onEvent: () => {
-    // Phase 6: sounds.
-  },
-});
+// Which sound each cue plays (SPEC §10).
+function playCue(event: GameEvent): void {
+  if (event.type === 'countdown') sfx.play('tick');
+  else if (event.type === 'finalTick') sfx.play('softTick');
+  else if (event.type === 'answer') sfx.play(event.correct ? 'correct' : 'incorrect');
+  else if (event.type === 'collision') {
+    if (config.collisionClicks) sfx.play('collision');
+  } else if (event.state === 'TARGET_INTRO') sfx.play('chime');
+  else if (event.state === 'TRACKING') sfx.play('go');
+  else if (event.state === 'TRACKING_COMPLETE') sfx.play('freeze');
+}
+
+const session = createSession({ strict: import.meta.env.DEV, reducedMotion, onEvent: playCue });
 
 // The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
 const stage = el('main', 'stage');
@@ -54,6 +60,7 @@ const hud = createHud(reducedMotion);
 const arena = createArena();
 const strip = createStatsStrip();
 const resultCard = createResultCard(() => {
+  sfx.unlock();
   if (!session.playAgain()) return;
   setScreen(app, 'play');
   window.scrollTo({ top: 0 });
@@ -66,6 +73,7 @@ app.append(
   createHeader(theme, sfx),
   stage,
   createStartScreen(() => {
+    sfx.unlock(); // inside the click: browsers only let a user gesture start audio
     if (session.start()) setScreen(app, 'play');
   }),
 );

@@ -87,7 +87,7 @@ export function createResultCard(onPlayAgain: () => void): ResultCard {
     el: card,
     show(view) {
       card.dataset.verdict = view.correct ? 'correct' : 'incorrect';
-      headline.replaceChildren(icon(view.icon), ' ', view.headline);
+      headline.replaceChildren(icon(view.icon), view.headline);
       subline.textContent = view.subline;
       stats.replaceChildren();
       for (const item of view.stats) stat(stats, item.label, item.icon).textContent = item.value;
@@ -101,7 +101,7 @@ export function createResultCard(onPlayAgain: () => void): ResultCard {
 function stat(strip: HTMLElement, label: string, glyph = ''): HTMLElement {
   const item = el('div', 'stat');
   const term = el('dt', '', label);
-  if (glyph) term.append(' ', icon(glyph));
+  if (glyph) term.append(icon(glyph));
   const value = el('dd');
   item.append(term, value);
   strip.append(item);

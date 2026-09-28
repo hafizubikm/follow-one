@@ -42,6 +42,19 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Emoji beside text (render/dom.ts icon()): the gap is margin, not a text space. */
+.icon {
+  display: inline-block;
+}
+
+:is(.hud-message, .result-headline) .icon {
+  margin-inline-end: 0.3em;
+}
+
+.stat dt .icon {
+  margin-inline-start: 0.3em;
+}
+
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;

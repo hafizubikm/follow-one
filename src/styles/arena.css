@@ -11,6 +11,10 @@
     inset 0 0 0 2px var(--arena-edge),
     0 12px 32px rgb(var(--shadow) / 0.08);
   transition: opacity 200ms ease;
+  /* Quick taps on balls and names shouldn't select text or open the touch callout. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* IDLE: empty and faint behind the start card (SPEC §12). */

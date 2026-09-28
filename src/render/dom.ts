@@ -9,7 +9,7 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** Emoji carry no meaning a screen reader needs beyond the text beside them. */
+/** Emoji carry no meaning a screen reader needs beyond the text beside them. Spacing comes from CSS, so accessible names get no stray spaces. */
 export function icon(glyph: string): HTMLSpanElement {
   const node = el('span', 'icon', glyph);
   node.setAttribute('aria-hidden', 'true');

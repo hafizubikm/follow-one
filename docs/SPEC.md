@@ -187,7 +187,7 @@ interface NamePack { id: string; label: string; names: string[] } // ≥ ballCou
 
 **Rendering (recommended):** 15 absolutely positioned elements inside the arena, moved each frame with `transform: translate3d(...)` (compositor-only; 15 elements is trivial at 60 fps). The same elements become `<button>`s in `SELECTION`, so there is no canvas↔DOM switch and no visual pop. Canvas 2D is acceptable for the motion phases only if the selection ring is a DOM overlay that matches the canvas drawing exactly.
 
-**Ball radius:** `ballRadius = 0.09` normalized (≈15 px on a 340 px arena, ≈29 px on 640 px). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size.
+**Ball radius:** `ballRadius = 0.09` normalized (≈15 px on a 340 px arena, ≈29 px on 640 px). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size. Where neighbouring hit areas overlap (small landscape arenas), a pointer pick goes to the ball whose center is nearest the pointer.
 
 **Ball visual states** (color is never the only cue):
 
@@ -262,9 +262,9 @@ Never teleport balls, never reposition them per frame, never treat the target di
 - Contrast: text ≥ 4.5:1; ball vs arena ≥ 3:1 in both themes; `--target` clearly distinct from `--ball` for common color-vision deficiencies (red/coral vs blue is fine, plus the glyphs).
 
 **Sound**
-- Web Audio API, synthesized in code, no audio files. Create and resume the `AudioContext` on the first user gesture (the Start Game click).
-- Effects: countdown tick, GO, soft tick in the last 5 seconds, freeze, correct (short rising arpeggio), incorrect (soft low tone, never harsh), reveal chime. Collision clicks are optional and off by default; if enabled, throttle to ≤ 6 per second at low gain.
-- Header toggle 🔊/🔇, persisted under `followone.sound`, default on. Never schedule audio while off.
+- Web Audio API, synthesized in code, no audio files. Create and resume the `AudioContext` on the first user gesture (the Start Game click); Play Again and switching sound on resume it too. Sounds that would pile up in a context that failed to start are dropped, not queued.
+- Effects: countdown tick (each numeral), GO (motion starts), soft tick (each of the last `finalWarningS` seconds), freeze (`TRACKING_COMPLETE`), correct (short rising arpeggio) or incorrect (soft low tone, never harsh) at `REVEAL`, reveal chime (the target is revealed at `TARGET_INTRO`). The recipes (pitches, envelopes, gains) are sound design and live in `audio/sfx.ts`, as the palette lives in CSS. Collision clicks are optional and off by default (`collisionClicks`); if enabled, throttle to ≤ `collisionClicksPerSecond` (6) at low gain.
+- Header toggle 🔊/🔇, persisted under `followone.sound`, default on. Never schedule audio while off; switching off also silences anything still ringing.
 
 **Accessibility**
 - Real `<button>` elements everywhere; visible `:focus-visible` styles; Enter/Space work on every control.
@@ -317,6 +317,10 @@ export const config = {
   // layout
   arenaMaxPx: 640,          // desktop cap on the arena diameter (§4)
   minHitPx: 44,             // smallest ball hit area (§5)
+
+  // sound
+  collisionClicks: false,   // optional collision clicks (§10)
+  collisionClicksPerSecond: 6,
 
   score: { correct: 100, streakBonus: 25 },
   storageKeys: { theme: 'followone.theme', sound: 'followone.sound', best: 'followone.best' },
