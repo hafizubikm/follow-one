@@ -27,7 +27,10 @@ export const config = {
   countdownFrom: 3, // countdown shows 3, 2, 1
   countdownStepMs: 1000,
   goMs: 500,
-  trackingMs: 15000,
+  trackingMs: 15000, // default; Settings allows trackingMsMin..trackingMsMax in trackingMsStep steps (§16)
+  trackingMsMin: 10000,
+  trackingMsMax: 60000,
+  trackingMsStep: 5000,
   revealHoldMs: 1500,
   revealFadeMs: 500,
   finalWarningS: 5,

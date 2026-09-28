@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
-import { ballRadiusFor, createRound } from '../src/game/round.ts';
+import { ballRadiusFor, createRound, defaultSetup } from '../src/game/round.ts';
 import { assignSlots, clockAngle, easeInOut, glidePoint, ringRadiusFor, slotAngle, slotPosition } from '../src/game/slots.ts';
 import { shuffle } from '../src/util/random.ts';
 
@@ -64,7 +64,7 @@ describe('the ring for every ball count (SPEC §7)', () => {
   it('numbers every ball of a small and a large game clockwise, 1..n', () => {
     for (const n of [config.ballCountMin, config.ballCountMax]) {
       for (let i = 0; i < 100; i++) {
-        const { balls } = createRound({ ballCount: n, speedFactor: 1 });
+        const { balls } = createRound({ ...defaultSetup, ballCount: n });
         const slots = assignSlots(balls);
         expect([...slots].sort((x, y) => x - y)).toEqual([...Array(n).keys()].map((k) => k + 1));
         const angles = balls.map((b, index) => ({ slot: slots[index], angle: clockAngle(b.x, b.y) }));
@@ -108,7 +108,7 @@ describe('spawn never uses the ring (SPEC §2.2)', () => {
       let slotted = 0;
       let closest = Infinity;
       for (let i = 0; i < rounds; i++) {
-        for (const ball of createRound({ ballCount: count, speedFactor: 1 }).balls) {
+        for (const ball of createRound({ ...defaultSetup, ballCount: count }).balls) {
           if (ball.slot !== null) slotted++;
           for (const c of slotCenters) closest = Math.min(closest, Math.hypot(ball.x - c.x, ball.y - c.y));
         }

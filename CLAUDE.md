@@ -37,7 +37,7 @@ Phase 1 creates these scripts. Package manager is npm.
 - Ring slots are assigned only at the freeze, by angular order (SPEC §7). Balls never spawn on slots.
 - Target, names, spawn positions and velocities are re-randomized every round with `Math.random`; no seeding, no "avoid repeats" logic.
 - Ball input is live only in SELECTION; the first activation locks input.
-- Ball count, speed and colors are read when a round is built and locked until it ends (SPEC §16).
+- Ball count, speed, duration and colors are read when a round is built and locked until it ends (SPEC §16).
 
 ## Workflow
 

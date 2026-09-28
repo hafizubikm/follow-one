@@ -4,6 +4,7 @@ import './styles/layout.css';
 import './styles/header.css';
 import './styles/hud.css';
 import './styles/arena.css';
+import './styles/countdown.css';
 import './styles/screens.css';
 import './styles/settings.css';
 import './styles/controls.css';
@@ -12,10 +13,11 @@ import { config } from './config.ts';
 import { startDebug } from './debug.ts';
 import { createSession, type GameEvent } from './game/session.ts';
 import type { GameState } from './game/stateMachine.ts';
-import { arenaView, hudView, resultView } from './game/view.ts';
+import { arenaView, countdownView, hudView, resultView } from './game/view.ts';
 import { wireSelection } from './input/selection.ts';
 import { startLoop } from './loop.ts';
 import { createArena } from './render/arena.ts';
+import { createCountdown } from './render/countdown.ts';
 import { el } from './render/dom.ts';
 import { createHeader } from './render/header.ts';
 import { createHud } from './render/hud.ts';
@@ -73,8 +75,9 @@ const session = createSession({
 // The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
 const stage = el('main', 'stage');
 const footer = el('div', 'footer');
-const hud = createHud(reducedMotion);
-const arena = createArena();
+const hud = createHud();
+const countdown = createCountdown(reducedMotion);
+const arena = createArena(countdown.el);
 const strip = createStatsStrip();
 const resultCard = createResultCard(() => {
   sfx.unlock();
@@ -89,14 +92,14 @@ wireSelection(arena, { canPick: () => session.selectionLive, pick: (id) => sessi
 const startScreen = createStartScreen(() => {
   sfx.unlock(); // inside the click: browsers only let a user gesture start audio
   if (session.start()) setScreen(app, 'play');
-}, settings.current.ballCount);
+}, settings.current);
 const header = createHeader(() => panel.open());
 const panel = createSettingsPanel({
   settings,
   theme,
   sfx,
   opener: header.settingsButton,
-  onChange: (current) => startScreen.setBallCount(current.ballCount),
+  onChange: (current) => startScreen.setMeta(current),
 });
 
 app.append(header.el, stage, startScreen.el);
@@ -131,6 +134,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get('debug') ===
         else setScreen(app, screenFor(shownState));
       }
       hud.render(hudView(session));
+      countdown.render(countdownView(session));
       arena.render(arenaView(session, alpha));
       strip.update(session.stats);
     },

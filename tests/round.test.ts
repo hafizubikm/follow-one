@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
-import { ballRadiusFor, createRound, roundPhysics, spawnBodies } from '../src/game/round.ts';
+import { ballRadiusFor, createRound, defaultSetup, roundPhysics, spawnBodies } from '../src/game/round.ts';
 import { getPack } from '../src/names/packs.ts';
 
 const n = config.ballCount;
@@ -126,7 +126,7 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
 
   it('builds n balls of the round radius, named from the start of the pack', () => {
     for (let n = config.ballCountMin; n <= config.ballCountMax; n++) {
-      const round = createRound({ ballCount: n, speedFactor: 1 });
+      const round = createRound({ ...defaultSetup, ballCount: n });
       expect(round.balls.map((b) => b.id)).toEqual([...Array(n).keys()]);
       expect(round.ballRadius).toBe(ballRadiusFor(n));
       expect(round.ringRadius).toBeCloseTo(config.slotRadius + config.ballRadius - round.ballRadius, 12);
@@ -140,7 +140,7 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
     for (const n of [config.ballCountMin, config.ballCountMax]) {
       const r = ballRadiusFor(n);
       for (let i = 0; i < 200; i++) {
-        const { balls } = createRound({ ballCount: n, speedFactor: 1 });
+        const { balls } = createRound({ ...defaultSetup, ballCount: n });
         for (const [a, ball] of balls.entries()) {
           expect(Math.hypot(ball.x, ball.y)).toBeLessThanOrEqual(1 - r - config.spawnMargin);
           for (const other of balls.slice(a + 1)) {
@@ -151,11 +151,16 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
     }
   });
 
+  it('keeps the duration it was built with', () => {
+    expect(createRound().trackingMs).toBe(config.trackingMs);
+    expect(createRound({ ...defaultSetup, trackingMs: 45_000 }).trackingMs).toBe(45_000);
+  });
+
   it('spawns at the speed setting', () => {
     for (const speedFactor of Object.values(config.speedPresets)) {
       const [lo, hi] = config.spawnSpeedRange.map((k) => k * config.baseSpeed * speedFactor);
       for (let i = 0; i < 50; i++) {
-        const round = createRound({ ballCount: 20, speedFactor });
+        const round = createRound({ ...defaultSetup, ballCount: 20, speedFactor });
         expect(round.speedFactor).toBe(speedFactor);
         for (const ball of round.balls) {
           const speed = Math.hypot(ball.vx, ball.vy);
@@ -180,7 +185,7 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
     const targets = new Array<number>(n).fill(0);
     const firstNames = new Map<string, number>();
     for (let i = 0; i < rounds; i++) {
-      const round = createRound({ ballCount: n, speedFactor: 1 });
+      const round = createRound({ ...defaultSetup, ballCount: n });
       targets[round.targetId]++;
       firstNames.set(round.balls[0].name, (firstNames.get(round.balls[0].name) ?? 0) + 1);
     }

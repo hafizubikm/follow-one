@@ -14,7 +14,6 @@ export const copy = {
   // Templates: {key} is filled by fill(); **text** is shown bold.
   hud: {
     intro: 'Your target is **{name}**. Keep your eyes on it.',
-    go: 'GO!',
     tracking: 'Keep your eyes on {name}',
     finalWarning: 'Stay focused!',
     freeze: "Nice! Time's up.",
@@ -22,6 +21,9 @@ export const copy = {
     selection: 'Which one was {name}?',
     checking: 'Checking...',
   },
+
+  /** Shown large in the arena after the countdown numerals (SPEC §5). */
+  countdown: { go: 'GO!' },
 
   glyphs: { target: '★', correct: '✓', wrong: '✕' },
 
@@ -41,6 +43,7 @@ export const copy = {
     sections: { game: 'Game', appearance: 'Appearance' },
     balls: { label: 'Balls', value: '{n} balls' },
     speed: { label: 'Speed', options: { slow: 'Slow', normal: 'Normal', fast: 'Fast', extreme: 'Extreme' } },
+    duration: { label: 'Duration', value: '{seconds} seconds' },
     theme: { label: 'Theme', options: { light: 'Light', dark: 'Dark', system: 'System' } },
     sound: { label: 'Sound', on: 'On', off: 'Off' },
     locked: 'Some settings are locked until this round ends.',

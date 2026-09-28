@@ -13,7 +13,7 @@ export interface SliderRow {
 /** A labelled slider with its current value spelled out beside the label and at the ends of its range. */
 export function sliderRow(
   label: string,
-  range: { readonly min: number; readonly max: number },
+  range: { readonly min: number; readonly max: number; readonly step: number },
   value: number,
   format: (value: number) => string,
   onInput: (value: number) => void,
@@ -29,7 +29,7 @@ export function sliderRow(
   head.append(name, shown);
 
   const input = el('input', 'slider');
-  Object.assign(input, { type: 'range', id, min: String(range.min), max: String(range.max), step: '1' });
+  Object.assign(input, { type: 'range', id, min: String(range.min), max: String(range.max), step: String(range.step) });
   const end = (text: number) => {
     const node = el('span', 'slider-end', String(text));
     node.setAttribute('aria-hidden', 'true');

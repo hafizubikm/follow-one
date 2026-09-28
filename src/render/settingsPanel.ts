@@ -32,13 +32,21 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
 
   const balls = sliderRow(
     text.balls.label,
-    { min: config.ballCountMin, max: config.ballCountMax },
+    { min: config.ballCountMin, max: config.ballCountMax, step: 1 },
     settings.current.ballCount,
     (n) => fill(text.balls.value, { n }),
     (ballCount) => change({ ballCount }),
   );
   const speed = segmentedChoice(text.speed.label, text.speed.options, settings.current.speed, (next) =>
     change({ speed: next }),
+  );
+  // Shown and stepped in seconds; stored in ms like every other duration.
+  const duration = sliderRow(
+    text.duration.label,
+    { min: config.trackingMsMin / 1000, max: config.trackingMsMax / 1000, step: config.trackingMsStep / 1000 },
+    settings.current.trackingMs / 1000,
+    (seconds) => fill(text.duration.value, { seconds }),
+    (seconds) => change({ trackingMs: seconds * 1000 }),
   );
   const themeChoice = segmentedChoice(text.theme.label, text.theme.options, theme.pref, (pref) => theme.setPref(pref));
   const sound = switchRow(text.sound.label, text.sound, sfx.enabled, (on) => sfx.setEnabled(on));
@@ -59,7 +67,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   dialog.append(
     head,
     note,
-    section('game', text.sections.game, balls.el, speed.el),
+    section('game', text.sections.game, balls.el, speed.el, duration.el),
     section('appearance', text.sections.appearance, themeChoice.el, sound),
   );
 
@@ -92,6 +100,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       note.hidden = !locked;
       balls.setDisabled(locked);
       speed.setDisabled(locked);
+      duration.setDisabled(locked);
     },
   };
 }

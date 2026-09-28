@@ -40,7 +40,7 @@ describe('copy matches SPEC §3', () => {
 
   it('HUD', () => {
     expect(copy.hud.intro).toBe(row('Intro (HUD)'));
-    expect([...countdownNumerals, copy.hud.go].join(' · ')).toBe(row('Countdown (arena)'));
+    expect([...countdownNumerals, copy.countdown.go].join(' · ')).toBe(row('Countdown (arena)'));
     expect(copy.hud.tracking).toBe(row('Tracking (HUD)'));
     expect(copy.hud.finalWarning).toBe(row('Last 5 s (HUD)'));
     expect(copy.hud.freeze).toBe(row('Freeze (HUD)'));
@@ -70,6 +70,7 @@ describe('copy matches SPEC §3', () => {
     expect(Object.values(s.sections).join(' · ')).toBe(row('Settings sections'));
     expect(`${s.balls.label} · ${s.balls.value}`).toBe(row('Balls setting'));
     expect(control(s.speed.label, s.speed.options)).toBe(row('Speed setting'));
+    expect(`${s.duration.label} · ${s.duration.value}`).toBe(row('Duration setting'));
     expect(control(s.theme.label, s.theme.options)).toBe(row('Theme setting'));
     expect(`${s.sound.label} · ${s.sound.on} · ${s.sound.off}`).toBe(row('Sound setting'));
     expect(s.locked).toBe(row('Settings locked'));

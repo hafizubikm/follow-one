@@ -98,7 +98,9 @@ export function createSession(options: SessionOptions, settings: Config = config
   const machine = createStateMachine({
     stepHz: settings.physicsHz,
     strict: options.strict,
-    durationOf: (state) => phaseDurationMs(state, settings, options.reducedMotion()),
+    // TRACKING lasts the round's own duration; the round exists by then (built on TARGET_INTRO).
+    durationOf: (state) =>
+      phaseDurationMs(state, round ? { ...settings, trackingMs: round.trackingMs } : settings, options.reducedMotion()),
     onEnter,
   });
 
@@ -109,9 +111,9 @@ export function createSession(options: SessionOptions, settings: Config = config
       if (beat !== Math.floor(before / settings.countdownStepMs)) {
         emit({ type: 'countdown', value: settings.countdownFrom - beat });
       }
-    } else if (state === 'TRACKING') {
-      const left = secondsLeft(after, settings);
-      if (left !== secondsLeft(before, settings) && left <= settings.finalWarningS) {
+    } else if (state === 'TRACKING' && round) {
+      const left = secondsLeft(after, round);
+      if (left !== secondsLeft(before, round) && left <= settings.finalWarningS) {
         emit({ type: 'finalTick', secondsLeft: left });
       }
     }
@@ -185,7 +187,7 @@ export function createSession(options: SessionOptions, settings: Config = config
   };
 }
 
-/** The tracking timer as shown: whole seconds left, rounded up (SPEC §12). */
-export function secondsLeft(elapsedMs: number, settings: Pick<Config, 'trackingMs'>): number {
-  return Math.ceil((settings.trackingMs - elapsedMs) / 1000);
+/** The tracking timer as shown: whole seconds left of the round's duration, rounded up (SPEC §12). */
+export function secondsLeft(elapsedMs: number, round: Pick<Round, 'trackingMs'>): number {
+  return Math.ceil((round.trackingMs - elapsedMs) / 1000);
 }

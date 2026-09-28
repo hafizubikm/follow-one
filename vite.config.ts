@@ -30,7 +30,8 @@ function htmlPlaceholders(): Plugin {
 // Browsers refuse module scripts and CORS-mode stylesheets on file:// pages. Shipping the
 // bundle as an IIFE in a deferred classic script, without crossorigin, lets dist/index.html
 // open straight from disk. (cssCodeSplit: false below keeps the CSS a render-blocking <link>;
-// with IIFE output Vite would otherwise inject it from JS, after the first paint.)
+// with IIFE output Vite would otherwise inject it from JS, after the first paint.) Only tags for
+// our own ./ assets lose crossorigin; the font host's preconnect needs it.
 function fileProtocolSafe(): Plugin {
   return {
     name: 'followone:file-protocol-safe',
@@ -38,7 +39,9 @@ function fileProtocolSafe(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler: (html) =>
-        html.replace(/<script type="module" crossorigin/g, '<script defer').replace(/ crossorigin(?=[\s>])/g, ''),
+        html
+          .replace(/<script type="module" crossorigin/g, '<script defer')
+          .replace(/ crossorigin(?=[^>]* (?:src|href)="\.\/)/g, ''),
     },
   };
 }

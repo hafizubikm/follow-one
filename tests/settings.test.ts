@@ -3,6 +3,7 @@ import { config } from '../src/config.ts';
 import { gameStates } from '../src/game/stateMachine.ts';
 import {
   clampBallCount,
+  clampTrackingMs,
   createSettings,
   defaultSettings,
   parseSettings,
@@ -16,8 +17,8 @@ const key = config.storageKeys.settings;
 const stored = (value: unknown) => memoryStore({ [key]: JSON.stringify(value) });
 
 describe('defaults (SPEC §16)', () => {
-  it('are the standard game: 15 balls at Normal speed', () => {
-    expect(defaultSettings).toEqual({ ballCount: 15, speed: 'normal' });
+  it('are the standard game: 15 balls at Normal speed for 15 seconds', () => {
+    expect(defaultSettings).toEqual({ ballCount: 15, speed: 'normal', trackingMs: 15_000 });
     expect(createSettings(memoryStore()).current).toEqual(defaultSettings);
   });
 
@@ -39,14 +40,33 @@ describe('validation', () => {
     expect(clampBallCount(Infinity)).toBe(15);
   });
 
+  it('keeps durations on the 5 s grid within 10–60 s', () => {
+    expect(clampTrackingMs(10_000)).toBe(10_000);
+    expect(clampTrackingMs(60_000)).toBe(60_000);
+    expect(clampTrackingMs(35_000)).toBe(35_000);
+    expect(clampTrackingMs(17_000)).toBe(15_000);
+    expect(clampTrackingMs(18_000)).toBe(20_000);
+    expect(clampTrackingMs(3_000)).toBe(10_000);
+    expect(clampTrackingMs(600_000)).toBe(60_000);
+    expect(clampTrackingMs(Number.NaN)).toBe(15_000);
+  });
+
   it('restores stored values', () => {
-    expect(parseSettings(JSON.stringify({ ballCount: 24, speed: 'extreme' }))).toEqual({ ballCount: 24, speed: 'extreme' });
+    expect(parseSettings(JSON.stringify({ ballCount: 24, speed: 'extreme', trackingMs: 45_000 }))).toEqual({
+      ballCount: 24,
+      speed: 'extreme',
+      trackingMs: 45_000,
+    });
   });
 
   it('checks each field on its own, so one bad value never resets the others', () => {
-    expect(parseSettings(JSON.stringify({ ballCount: 'twenty', speed: 'fast' }))).toEqual({ ballCount: 15, speed: 'fast' });
-    expect(parseSettings(JSON.stringify({ ballCount: 12, speed: 'ludicrous' }))).toEqual({ ballCount: 12, speed: 'normal' });
-    expect(parseSettings(JSON.stringify({ ballCount: 99 }))).toEqual({ ballCount: 30, speed: 'normal' });
+    expect(parseSettings(JSON.stringify({ ballCount: 'twenty', speed: 'fast', trackingMs: 20_000 }))).toEqual({
+      ballCount: 15,
+      speed: 'fast',
+      trackingMs: 20_000,
+    });
+    expect(parseSettings(JSON.stringify({ ballCount: 12, speed: 'ludicrous' }))).toEqual({ ...defaultSettings, ballCount: 12 });
+    expect(parseSettings(JSON.stringify({ ballCount: 99, trackingMs: '30s' }))).toEqual({ ...defaultSettings, ballCount: 30 });
     expect(parseSettings(JSON.stringify({ speed: 'toString' }))).toEqual(defaultSettings);
   });
 
@@ -59,19 +79,25 @@ describe('validation', () => {
 
 describe('createSettings (persistence)', () => {
   it('restores what was stored', () => {
-    expect(createSettings(stored({ ballCount: 21, speed: 'slow' })).current).toEqual({ ballCount: 21, speed: 'slow' });
+    expect(createSettings(stored({ ballCount: 21, speed: 'slow', trackingMs: 30_000 })).current).toEqual({
+      ballCount: 21,
+      speed: 'slow',
+      trackingMs: 30_000,
+    });
   });
 
   it('applies a change, validated, and persists the whole set as JSON', () => {
     const store = memoryStore();
     const settings = createSettings(store);
-    expect(settings.update({ ballCount: 27 })).toEqual({ ballCount: 27, speed: 'normal' });
+    expect(settings.update({ ballCount: 27 })).toEqual({ ...defaultSettings, ballCount: 27 });
     settings.update({ speed: 'fast' });
-    expect(settings.current).toEqual({ ballCount: 27, speed: 'fast' });
-    expect(JSON.parse(store.data[key])).toEqual({ ballCount: 27, speed: 'fast' });
+    settings.update({ trackingMs: 25_000 });
+    const expected = { ballCount: 27, speed: 'fast', trackingMs: 25_000 };
+    expect(settings.current).toEqual(expected);
+    expect(JSON.parse(store.data[key])).toEqual(expected);
 
-    settings.update({ ballCount: 3 });
-    expect(settings.current.ballCount).toBe(config.ballCountMin);
+    settings.update({ ballCount: 3, trackingMs: 1_000 });
+    expect(settings.current).toMatchObject({ ballCount: config.ballCountMin, trackingMs: config.trackingMsMin });
   });
 
   it('keeps working when storage throws or is unavailable', () => {
@@ -86,8 +112,12 @@ describe('createSettings (persistence)', () => {
 
 describe('rounds and locking', () => {
   it('turns settings into a round setup', () => {
-    expect(roundSetup({ ballCount: 30, speed: 'extreme' })).toEqual({ ballCount: 30, speedFactor: 1.6 });
-    expect(roundSetup(defaultSettings)).toEqual({ ballCount: 15, speedFactor: 1 });
+    expect(roundSetup({ ballCount: 30, speed: 'extreme', trackingMs: 60_000 })).toEqual({
+      ballCount: 30,
+      speedFactor: 1.6,
+      trackingMs: 60_000,
+    });
+    expect(roundSetup(defaultSettings)).toEqual({ ballCount: 15, speedFactor: 1, trackingMs: 15_000 });
   });
 
   it('locks from TARGET_INTRO through REVEAL, and only then (SPEC §16)', () => {

@@ -81,6 +81,7 @@ export function startDebug(arena: Arena): void {
         order: bodies.map((_, i) => i),
         slotNumbers: 0,
         input: 'off',
+        hideCursor: false,
       });
 
       frames++;

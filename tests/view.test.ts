@@ -4,8 +4,10 @@ import { copy, fill } from '../src/copy.ts';
 import { createStats } from '../src/game/score.ts';
 import type { Session } from '../src/game/session.ts';
 import type { GameState } from '../src/game/stateMachine.ts';
+import { defaultSetup } from '../src/game/round.ts';
 import {
   arenaView,
+  countdownView,
   hudView,
   inputMode,
   resultView,
@@ -42,27 +44,19 @@ describe('HUD (SPEC §3, §12)', () => {
     expect(view.timer).toBeNull();
   });
 
-  it('counts down 3, 2, 1 in large numerals, one per countdownStepMs', () => {
-    const shown = [0, 999, 1000, 1999, 2000, 2999].map((t) => hudView(at('COUNTDOWN', t)));
-    expect(shown.map((v) => v.message)).toEqual(['3', '3', '2', '2', '1', '1']);
-    expect(shown.every((v) => v.big && v.timer === null)).toBe(true);
+  it('keeps the intro line up through the countdown, whose numerals are in the arena', () => {
+    for (const t of [0, 1000, 2999]) {
+      expect(hudView(at('COUNTDOWN', t))).toEqual({ message: fill(copy.hud.intro, { name }), icon: '', timer: null });
+    }
   });
 
-  it('shows GO! for goMs, then the tracking line, then "Stay focused!" for the last seconds', () => {
-    expect(hudView(at('TRACKING', 0))).toEqual({ message: 'GO!', icon: '', big: true, timer: 15, urgent: false });
-    expect(hudView(at('TRACKING', config.goMs - stepMs)).message).toBe('GO!');
-    expect(hudView(at('TRACKING', config.goMs))).toEqual({
-      message: fill(copy.hud.tracking, { name }),
-      icon: '',
-      big: false,
-      timer: 15,
-      urgent: false,
-    });
+  it('asks to keep eyes on the target from the first step of tracking, then "Stay focused!" for the last seconds', () => {
+    expect(hudView(at('TRACKING', 0))).toEqual({ message: fill(copy.hud.tracking, { name }), icon: '', timer: 15 });
     expect(hudView(at('TRACKING', 10_000 - stepMs))).toMatchObject({ message: `Keep your eyes on ${name}`, timer: 6 });
-    expect(hudView(at('TRACKING', 10_000))).toEqual({ message: 'Stay focused!', icon: '', big: false, timer: 5, urgent: true });
+    expect(hudView(at('TRACKING', 10_000))).toEqual({ message: 'Stay focused!', icon: '', timer: 5 });
   });
 
-  it('counts the timer 15 → 1, then shows 0 at the freeze, then hides it', () => {
+  it('keeps a timer for assistive technology: 15 → 1, then 0 at the freeze, then none', () => {
     const shown = new Set<number | null>();
     for (let t = 0; t < config.trackingMs; t += stepMs) shown.add(hudView(at('TRACKING', t)).timer);
     expect([...shown]).toEqual([15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
@@ -83,6 +77,55 @@ describe('HUD (SPEC §3, §12)', () => {
     const target = sample.round!.targetId;
     expect(hudView(at('REVEAL', 0, { pickedId: target }))).toMatchObject({ message: 'Nailed it!', icon: '🎯' });
     expect(hudView(at('REVEAL', 0, { pickedId: wrongId(sample) }))).toMatchObject({ message: 'Not quite!', icon: '👀' });
+  });
+});
+
+describe('arena countdown (SPEC §5)', () => {
+  const empty = { text: '', strong: false };
+
+  it('is empty before the countdown and from the ring on', () => {
+    for (const state of ['IDLE', 'TARGET_INTRO', 'RETURNING', 'SELECTION', 'CHECKING', 'REVEAL', 'RESULT'] as const) {
+      expect(countdownView(at(state, 0)), state).toEqual(empty);
+    }
+  });
+
+  it('shows 3, 2, 1 strongly, one per countdownStepMs', () => {
+    const shown = [0, 999, 1000, 1999, 2000, 2999].map((t) => countdownView(at('COUNTDOWN', t)));
+    expect(shown.map((v) => v.text)).toEqual(['3', '3', '2', '2', '1', '1']);
+    expect(shown.every((v) => v.strong)).toBe(true);
+  });
+
+  it('shows GO! strongly for goMs, then the seconds left faintly, 15 → 1', () => {
+    expect(countdownView(at('TRACKING', 0))).toEqual({ text: copy.countdown.go, strong: true });
+    expect(countdownView(at('TRACKING', config.goMs - stepMs))).toEqual({ text: 'GO!', strong: true });
+    expect(countdownView(at('TRACKING', config.goMs))).toEqual({ text: '15', strong: false });
+    const shown = new Set<string>();
+    for (let t = config.goMs; t < config.trackingMs; t += stepMs) shown.add(countdownView(at('TRACKING', t)).text);
+    expect([...shown]).toEqual(['15', '14', '13', '12', '11', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1']);
+  });
+
+  it('reads 0, faintly, at the freeze', () => {
+    expect(countdownView(at('TRACKING_COMPLETE', 0))).toEqual({ text: '0', strong: false });
+  });
+
+  it('counts down from the round’s own duration', () => {
+    const round = { ...sample.round!, trackingMs: 30_000 };
+    expect(countdownView(at('TRACKING', config.goMs, { round })).text).toBe('30');
+    expect(countdownView(at('TRACKING', 29_000, { round })).text).toBe('1');
+    expect(hudView(at('TRACKING', 24_999, { round }))).toMatchObject({ message: `Keep your eyes on ${name}`, timer: 6 });
+    expect(hudView(at('TRACKING', 25_000, { round }))).toMatchObject({ message: 'Stay focused!', timer: 5 });
+  });
+});
+
+describe('cursor (SPEC §12)', () => {
+  it('hides over the arena only while the balls move', () => {
+    const driven = started();
+    const hidden = new Set<string>();
+    for (let i = 0; i < 4_000 && !driven.session.selectionLive; i++) {
+      driven.run(1);
+      if (arenaView(driven.session, 0)!.hideCursor) hidden.add(driven.session.state);
+    }
+    expect([...hidden]).toEqual(['TRACKING']);
   });
 });
 
@@ -233,7 +276,7 @@ describe('ring, input and reveal views', () => {
 describe('names on the ring', () => {
   /** A finished round of `count` balls whose target sits in slot 1 and whose wrong pick sits in `pickSlot`. */
   const revealWithPickIn = (pickSlot: number, count: number = config.ballCount) => {
-    const driven = started(config, () => ({ ballCount: count, speedFactor: 1 }));
+    const driven = started(config, () => ({ ...defaultSetup, ballCount: count }));
     const { session } = driven;
     toLiveSelection(driven);
     const round = session.round!;
@@ -280,7 +323,7 @@ describe('names on the ring', () => {
 describe('ball size and ring in the view', () => {
   it('passes the round’s ball radius and ring radius to the renderer', () => {
     for (const ballCount of [config.ballCountMin, config.ballCount, config.ballCountMax]) {
-      const { session } = started(config, () => ({ ballCount, speedFactor: 1 }));
+      const { session } = started(config, () => ({ ...defaultSetup, ballCount }));
       const view = arenaView(session, 0)!;
       expect(view.balls).toHaveLength(ballCount);
       expect(view.ballRadius).toBe(session.round!.ballRadius);

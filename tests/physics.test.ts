@@ -76,7 +76,7 @@ describe('world invariants (SPEC §6)', () => {
     [config.ballCountMax, 'slow'],
     [config.ballCountMax, 'extreme'],
   ] as const)('hold for %i balls at %s speed', (ballCount, preset) => {
-    expectInvariants({ ballCount, speedFactor: config.speedPresets[preset] }, 5, steps);
+    expectInvariants({ ...defaultSetup, ballCount, speedFactor: config.speedPresets[preset] }, 5, steps);
   });
 
   it('never leaves a ball at zero speed', () => {

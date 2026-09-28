@@ -22,6 +22,12 @@
   opacity: 0.5;
 }
 
+/* While the balls move the cursor hides over the arena, so it can't sit on a ball (SPEC §12). */
+.arena[data-hide-cursor],
+.arena[data-hide-cursor] * {
+  cursor: none;
+}
+
 /* ---------- ring slot numbers (SPEC §5): placed by the renderer, just outside each slot ---------- */
 
 .slot-numbers {
@@ -105,7 +111,7 @@
 .ball-glyph {
   color: var(--on-accent);
   font-size: calc(var(--ball-d) * 0.56);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -122,7 +128,7 @@
   background: var(--surface);
   color: var(--text);
   font-size: 0.8125rem;
-  font-weight: 750;
+  font-weight: 700;
   line-height: 1.5;
   white-space: nowrap;
   box-shadow:

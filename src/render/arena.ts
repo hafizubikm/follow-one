@@ -22,18 +22,21 @@ interface BallElement {
 const SLOT_NUMBER_GAP_PX = 10;
 
 // Only this module turns arena units into pixels; everything upstream stays resolution-free (SPEC §4).
-export function createArena(): Arena {
+// `underlay` (the countdown watermark) goes first, so it draws over the arena's face and under the balls.
+export function createArena(underlay?: HTMLElement): Arena {
   const arena = el('div', 'arena');
   arena.style.setProperty('--hit-min', `${config.minHitPx}px`);
-  // Balls are buttons from the start (SPEC §5) but stay out of reach until selection.
-  arena.inert = true;
   arena.dataset.input = 'off';
 
   const numbers = el('div', 'slot-numbers');
   numbers.setAttribute('aria-hidden', 'true');
   const layer = el('div', 'balls');
   layer.hidden = true;
-  arena.append(numbers, layer);
+  // Balls are buttons from the start (SPEC §5) but stay out of reach until selection. Only their layer
+  // goes inert: an inert arena would let the pointer fall through to the page, taking the hidden
+  // cursor with it.
+  layer.inert = true;
+  arena.append(...(underlay ? [underlay] : []), numbers, layer);
 
   let balls: BallElement[] = [];
   let numberEls: HTMLElement[] = [];
@@ -47,6 +50,7 @@ export function createArena(): Arena {
 
   let order = '';
   let input: InputMode = 'off';
+  let cursorHidden = false;
   let ballRadius = 0;
   let numbersAt = '';
   let numbersOpacity = '';
@@ -62,7 +66,7 @@ export function createArena(): Arena {
   const setInput = (next: InputMode) => {
     input = next;
     arena.dataset.input = next;
-    arena.inert = next === 'off';
+    layer.inert = next === 'off';
     for (const ball of balls) {
       ball.el.tabIndex = next === 'off' ? -1 : 0;
       if (next === 'locked') ball.el.setAttribute('aria-disabled', 'true');
@@ -86,6 +90,11 @@ export function createArena(): Arena {
     el: arena,
     render(view) {
       if (layer.hidden !== (view === null)) layer.hidden = view === null;
+      const hideCursor = view?.hideCursor ?? false;
+      if (hideCursor !== cursorHidden) {
+        cursorHidden = hideCursor;
+        arena.toggleAttribute('data-hide-cursor', hideCursor);
+      }
       if (!radiusPx) radiusPx = arena.clientWidth / 2;
       const opacity = view ? String(view.slotNumbers) : '0';
       if (opacity !== numbersOpacity) {

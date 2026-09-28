@@ -1,6 +1,6 @@
-import { config } from '../config.ts';
 import { copy, fill } from '../copy.ts';
 import type { ResultView } from '../game/view.ts';
+import type { Settings } from '../settings/settings.ts';
 import { el, icon } from './dom.ts';
 
 /** Which panel the page shows; CSS keys layout off `data-screen` on the app root. */
@@ -10,13 +10,15 @@ export function setScreen(root: HTMLElement, screen: Screen): void {
   if (root.dataset.screen !== screen) root.dataset.screen = screen;
 }
 
+type MetaSettings = Pick<Settings, 'ballCount' | 'trackingMs'>;
+
 export interface StartScreen {
   readonly el: HTMLElement;
-  /** The meta line follows the ball-count setting. */
-  setBallCount(n: number): void;
+  /** The meta line follows the ball-count and duration settings. */
+  setMeta(settings: MetaSettings): void;
 }
 
-export function createStartScreen(onStart: () => void, ballCount: number): StartScreen {
+export function createStartScreen(onStart: () => void, settings: MetaSettings): StartScreen {
   const screen = el('section', 'start-screen');
   const slot = el('div', 'start-slot');
   const card = el('div', 'start-card');
@@ -26,10 +28,10 @@ export function createStartScreen(onStart: () => void, ballCount: number): Start
   button.addEventListener('click', onStart);
 
   const meta = el('p', 'start-meta');
-  const setBallCount = (n: number) => {
-    meta.textContent = fill(copy.start.meta, { n, seconds: config.trackingMs / 1000 });
+  const setMeta = ({ ballCount, trackingMs }: MetaSettings) => {
+    meta.textContent = fill(copy.start.meta, { n: ballCount, seconds: trackingMs / 1000 });
   };
-  setBallCount(ballCount);
+  setMeta(settings);
 
   card.append(
     el('h1', 'start-title', copy.title),
@@ -40,7 +42,7 @@ export function createStartScreen(onStart: () => void, ballCount: number): Start
   );
   slot.append(card);
   screen.append(slot);
-  return { el: screen, setBallCount };
+  return { el: screen, setMeta };
 }
 
 export interface StripStats {

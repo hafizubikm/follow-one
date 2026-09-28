@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
-import type { RoundSetup } from '../src/game/round.ts';
+import { defaultSetup, type RoundSetup } from '../src/game/round.ts';
 import { createSession, type Session } from '../src/game/session.ts';
 import { assignSlots, slotPosition } from '../src/game/slots.ts';
 import { started, steps, toLiveSelection, wrongId } from './drive.ts';
@@ -154,13 +154,13 @@ describe('session: the ring (SPEC §7)', () => {
 
 describe('session: settings per round (SPEC §2.6, §16)', () => {
   it('builds each round from the setup read as it starts, and keeps it to the end', () => {
-    let setup: RoundSetup = { ballCount: 12, speedFactor: 1 };
+    let setup: RoundSetup = { ...defaultSetup, ballCount: 12 };
     const driven = started(config, () => setup);
     const { session } = driven;
     const first = session.round!;
     expect(first.balls).toHaveLength(12);
 
-    setup = { ballCount: 30, speedFactor: 1.6 }; // changed mid-round
+    setup = { ballCount: 30, speedFactor: 1.6, trackingMs: 40_000 }; // changed mid-round
     toLiveSelection(driven);
     expect(session.round).toBe(first);
     expect(first.balls).toHaveLength(12);
@@ -173,9 +173,32 @@ describe('session: settings per round (SPEC §2.6, §16)', () => {
     expect(session.round!.speedFactor).toBe(1.6);
   });
 
+  it('moves the balls for the round’s duration, with the final ticks in its last seconds', () => {
+    let setup: RoundSetup = { ...defaultSetup, trackingMs: 30_000 };
+    const driven = started(config, () => setup);
+    driven.runUntil('TRACKING');
+    setup = { ...defaultSetup, trackingMs: 10_000 }; // changed mid-round: no effect on this one
+    const trackingStart = driven.clock();
+    driven.runUntil('TRACKING_COMPLETE');
+    expect(driven.clock() - trackingStart).toBe(steps(30_000));
+    const ticks = driven.events.filter(({ event }) => event.type === 'finalTick');
+    expect(ticks.map(({ event }) => (event.type === 'finalTick' ? event.secondsLeft : 0))).toEqual([5, 4, 3, 2, 1]);
+    expect(ticks[0].at - trackingStart).toBe(steps(25_000));
+
+    driven.runUntil('SELECTION');
+    driven.run(steps(config.settleMs));
+    driven.session.pick(0);
+    driven.runUntil('RESULT');
+    driven.session.playAgain();
+    driven.runUntil('TRACKING');
+    const next = driven.clock();
+    driven.runUntil('TRACKING_COMPLETE');
+    expect(driven.clock() - next).toBe(steps(10_000));
+  });
+
   it('runs the balls at the round speed', () => {
     for (const speedFactor of [config.speedPresets.slow, config.speedPresets.extreme]) {
-      const driven = started(config, () => ({ ballCount: 20, speedFactor }));
+      const driven = started(config, () => ({ ...defaultSetup, ballCount: 20, speedFactor }));
       driven.runUntil('TRACKING');
       const speed = speedFactor * config.baseSpeed;
       let total = 0;
@@ -195,7 +218,7 @@ describe('session: settings per round (SPEC §2.6, §16)', () => {
   });
 
   it('glides a 30-ball round onto its own ring', () => {
-    const driven = started(config, () => ({ ballCount: 30, speedFactor: 1 }));
+    const driven = started(config, () => ({ ...defaultSetup, ballCount: 30 }));
     driven.runUntil('SELECTION');
     const round = driven.session.round!;
     expect(round.ringRadius).toBeCloseTo(config.slotRadius + config.ballRadius - round.ballRadius, 12);

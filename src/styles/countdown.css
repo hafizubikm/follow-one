@@ -1,0 +1,43 @@
+/* The arena countdown (SPEC §5): one large numeral in the middle of the arena, over its face and under
+   the balls. Strong for 3·2·1 and GO!, faint for the seconds while the balls move. */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  color: var(--text);
+  opacity: 0.14;
+  pointer-events: none;
+  transition: opacity 400ms ease;
+}
+
+.countdown[data-strong] {
+  opacity: 0.55;
+}
+
+/* The two faces share one cell, so the old numeral can leave while the new one arrives. */
+.countdown-face {
+  grid-area: 1 / 1;
+  font-size: calc(var(--arena-size) * 0.44);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  /* Center the numeral's ink, not its line box (which has room for descenders digits don't use). */
+  text-box: trim-both cap alphabetic;
+}
+
+@supports not (text-box: trim-both cap alphabetic) {
+  .countdown-face {
+    translate: 0 -0.035em; /* the same correction, measured for Play (system-ui: 0.028em) */
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown {
+    transition: none;
+  }
+}

@@ -22,17 +22,21 @@ export interface Round {
   readonly ringRadius: number;
   /** The Speed setting's multiplier on baseSpeed (SPEC §6). */
   readonly speedFactor: number;
+  /** How long the balls move this round (SPEC §16). */
+  readonly trackingMs: number;
 }
 
 /** What the player's settings decide about a round; read once, when it is built (SPEC §2.6). */
 export interface RoundSetup {
   readonly ballCount: number;
   readonly speedFactor: number;
+  readonly trackingMs: number;
 }
 
 export const defaultSetup: RoundSetup = {
   ballCount: config.ballCount,
   speedFactor: config.speedPresets[config.speedPreset],
+  trackingMs: config.trackingMs,
 };
 
 export interface SpawnSettings {
@@ -86,6 +90,7 @@ export function createRound(setup: RoundSetup = defaultSetup, settings: Config =
     ballRadius,
     ringRadius: ringRadiusFor(ballRadius, settings),
     speedFactor: setup.speedFactor,
+    trackingMs: setup.trackingMs,
   };
 }
 

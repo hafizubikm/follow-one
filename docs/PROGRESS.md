@@ -314,3 +314,43 @@ Code
 - Chrome's accessibility tree reports the Balls slider's value text as "15", not the `aria-valuetext` "15 balls"; a plain `<input type=range>` does the same, so it's Chrome's mapping. The label "Balls" plus the value still reads clearly.
 - In RESULT on short viewports the page scrolls to the card, so ⚙ (in the header) scrolls out of view until the player scrolls up; it is never fixed over the arena.
 - Collision clicks still exist and stay off by default (`collisionClicks: false`), as before.
+
+## 2026-09-29 — Phase 9: Duration, arena countdown, cursor and typography
+
+Asked for after phase 8: a way to change the round's duration, and the countdown as a watermark in the middle of the arena. The watermark was planned for phase 10 with the cursor and the Play font (its numerals are set in Play), so that whole phase moved up and colors became phase 10.
+
+### Spec edits
+- Duration setting (§1, §2.6, §3, §11, §12, §14, §16): a slider from 10 to 60 s in 5 s steps, default 15 s, locked during a round like ball count and speed, stored in `followone.settings`. New §3 row "Duration setting | Duration · {seconds} seconds"; `{seconds}` in the start meta line is now the setting.
+- §11 new keys: `trackingMsMin: 10000`, `trackingMsMax: 60000`, `trackingMsStep: 5000`. `trackingMs: 15000` is unchanged and is the default.
+- §13: phases re-cut: 9 duration, arena countdown, cursor and typography; 10 colors; 11 acceptance.
+- §8: in RESULT "the balls become inert" (was "the arena"): the cursor rule needs the arena itself to take the pointer. §10: Play loads without blocking the first paint.
+- CLAUDE.md: the settings-lock hard rule includes duration.
+
+### Done
+- Duration: `Settings.trackingMs` (snapped to the 5 s grid within 10–60 s), `RoundSetup`/`Round.trackingMs`; the session times TRACKING and the final-second ticks from the round's duration; the drawer's Game section gains a Duration slider (seconds shown, ms stored) that locks with the others; the start meta line shows it.
+- Arena countdown (`render/countdown.ts`, `styles/countdown.css`, `countdownView`): one large Play-bold numeral in the middle of the arena, the arena's first child, so it draws over its face and edge and under the balls; `pointer-events: none`, `aria-hidden`. 3·2·1 and GO! at 55% opacity, the seconds left and the freeze's 0 at 14%, empty from RETURNING on. Two stacked faces crossfade with a slight scale (old out, new in); reduced motion swaps instantly. The face is trimmed to cap height (`text-box`), so the digits' ink sits on the arena's center; browsers without `text-box` get a measured 0.035 em nudge instead.
+- HUD: the intro line stays up through the countdown; from the first step of tracking it shows "Keep your eyes on {name}" (then "Stay focused!"). The visible timer pill and the big-numeral mode are gone; a visually hidden `role="timer"` keeps the seconds available to assistive technology. The target's name in the intro line is bold and larger.
+- Cursor: `data-hide-cursor` on the arena during TRACKING hides the cursor over the circle only. `inert` moved from the arena to the ball layer: Chrome skips inert elements when hit-testing (checked on a bare page), so an inert arena would show the page's cursor.
+- Typography: Play 400/700 from Google Fonts with preconnects; the stylesheet loads as `media="print"` and switches on load, so a slow or blocked font host never delays the first paint. The build keeps `crossorigin` on the font preconnect (only our own `./` assets lose it now). Weights normalized to Play's two: 700 for titles, names, buttons, labels, numbers; 400 for instructions and secondary text (meta line, stat labels, setting values).
+- Tests (186, was 177): duration clamping, parsing and persistence; round keeps its duration; the session moves the balls for the round's duration with the final ticks in its last 5 s, ignores a mid-round change and uses the new one next round; HUD per state (intro through the countdown, tracking line from step 1, hidden timer 15 → 1 → 0); arena countdown per state (3·2·1 strong, GO! then 15 → 1 faint, 0 at the freeze, empty otherwise); countdown from a 30 s round; cursor hidden in TRACKING only; copy row for Duration.
+
+### Verified in the browser (headless Chrome over the DevTools protocol; the Browser pane was hidden)
+- Play loads (400 and 700) on the dev server and from `file://` in the production build; body font Play. The watermark is Play bold.
+- Watermark at 1280×800 light, 375×812 dark and 812×375 light, with a 20 s duration: empty in the intro; 3 → 2 → 1 strong; GO! strong with the HUD already on "Keep your eyes on …"; then 19 → 1 faint; "Stay focused!" at 5; 0 at the freeze; gone during the glide and selection. It is the arena's first child, `pointer-events: none`, `aria-hidden`; at every ball's center the topmost element is the ball. After the `text-box` fix the numeral's box is the digit's cap height (168 px vs 170 expected at 1280×800) and sits exactly on the arena's center (0, 0 px); before it the ink sat ~9 px low.
+- Cursor: during TRACKING the hit test at the arena's center lands on the arena (not the page) with `cursor: none`, balls too; just outside the circle the page shows `auto`; before and after TRACKING the flag is off.
+- Duration: slider 10–60 step 5 reads "15 seconds"; → moves to 20, updates the meta line and storage; a 60 s round starts at "60"; both sliders are disabled mid-round.
+- Reduced motion: numerals 3 2 1 GO! 15 14 13 appear with zero Web Animations and no opacity transition; with motion both faces animate on each change.
+- Layout with Play at 1280×800, 375×812, 360×740, 320×568, 812×375: no horizontal overflow, no clipped segment labels, arena sizes unchanged (588/343/328/288/215 px). The drawer now scrolls at 320×568 (50 px) and 812×375.
+- Font host blocked (`Network.setBlockedURLs`) or hanging (requests intercepted and never answered), production build from `file://`: first contentful paint at 92–120 ms, no Play faces registered so the system font renders, and a round starts and counts down. Online the same build loads Play 400 and 700.
+- Regression: phase 8's rounds (30 balls Extreme, 10 balls Slow, changed in RESULT) and keyboard/accessibility runs pass: ring, fairness after the fade and in selection, locking, tab order ✕ → Balls → Speed → Duration → Theme → Sound, AX tree with slider "Duration". 30 balls at Extreme with the watermark: 60 fps, p95 16.7 ms at 4× CPU throttle.
+
+### SPEC §14 items touched
+- Verified: 3·2·1 and GO! strong, then the seconds faint, large in the arena center behind the balls, never blocking a pick, 0 at the freeze, gone for the ring; timer counts down from the round's duration and freezes at 0; the cursor hides over the arena only while tracking and comes back outside it and after; Play everywhere with a clear hierarchy, system font as fallback; Duration works with pointer and keyboard, persists, and is locked mid-round; reduced motion removes the countdown's scale/fade; no horizontal scroll; all tests pass.
+- Not yet: Ball color, Target color and the color hint (phase 10), so "all seven settings persist" has five of seven.
+
+### Deferred
+- Phase 10: ball and target colors. Phase 11: v1.1 acceptance.
+
+### Known issues / notes
+- Google Fonts receives visitors' IP addresses and needs a connection; self-hosting the two woff2 files would avoid both (not done: the spec asks for Google Fonts).
+- Screen readers get the tracking seconds from the hidden timer on request, as before; the watermark itself is decorative.

@@ -26,13 +26,13 @@
 .setting-label {
   padding: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .setting-value {
   color: var(--muted);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
@@ -157,7 +157,7 @@ fieldset.setting:disabled {
   border-radius: 999px;
   color: var(--muted);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -197,7 +197,7 @@ fieldset:disabled .segment:hover span {
   border-radius: 999px;
   color: var(--muted);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 400;
 }
 
 .switch[aria-checked='true'] {

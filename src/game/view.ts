@@ -14,12 +14,16 @@ export interface HudView {
   readonly message: string;
   /** Emoji shown before the message, hidden from screen readers. */
   readonly icon: string;
-  /** Countdown numerals and GO! are shown large. */
-  readonly big: boolean;
-  /** Seconds on the timer, or null when it is hidden. */
+  /** Seconds left, for assistive technology (the arena shows them to the eye); null outside tracking. */
   readonly timer: number | null;
-  /** The last finalWarningS seconds of tracking. */
-  readonly urgent: boolean;
+}
+
+/** The arena's watermark numeral (SPEC §5). */
+export interface CountdownView {
+  /** 3, 2, 1, GO!, the seconds left or 0; '' when there is none. */
+  readonly text: string;
+  /** 3·2·1 and GO! show strongly; the tracking seconds and the freeze's 0 faintly. */
+  readonly strong: boolean;
 }
 
 export type BallLook = 'target' | 'picked' | 'revealed-correct' | 'revealed-target' | 'revealed-wrong-pick';
@@ -55,6 +59,8 @@ export interface ArenaView {
   /** Opacity of the ring's slot numbers. */
   readonly slotNumbers: number;
   readonly input: InputMode;
+  /** The cursor hides over the arena while the balls move (SPEC §12). */
+  readonly hideCursor: boolean;
 }
 
 export interface ResultStat {
@@ -80,23 +86,20 @@ const targetName = (round: Round | null) => (round ? round.balls[round.targetId]
 export function hudView(s: SessionState, settings: Config = config): HudView {
   const t = s.elapsedMs;
   const name = targetName(s.round);
-  const text = (message: string, icon = ''): HudView => ({ message, icon, big: false, timer: null, urgent: false });
+  const text = (message: string, icon = ''): HudView => ({ message, icon, timer: null });
 
   switch (s.state) {
     case 'IDLE':
     case 'RESULT':
       return text('');
+    // The countdown runs in the arena; the HUD keeps the target's name up meanwhile.
     case 'TARGET_INTRO':
+    case 'COUNTDOWN':
       return text(fill(copy.hud.intro, { name }));
-    case 'COUNTDOWN': {
-      const beat = Math.min(Math.floor(t / settings.countdownStepMs), countdownNumerals.length - 1);
-      return { ...text(countdownNumerals[beat]), big: true };
-    }
     case 'TRACKING': {
-      const left = secondsLeft(t, settings);
-      const urgent = left <= settings.finalWarningS;
-      if (t < settings.goMs) return { ...text(copy.hud.go), big: true, timer: left, urgent };
-      return { ...text(urgent ? copy.hud.finalWarning : fill(copy.hud.tracking, { name })), timer: left, urgent };
+      const left = s.round ? secondsLeft(t, s.round) : 0;
+      const message = left <= settings.finalWarningS ? copy.hud.finalWarning : fill(copy.hud.tracking, { name });
+      return { ...text(message), timer: left };
     }
     case 'TRACKING_COMPLETE':
       return { ...text(copy.hud.freeze), timer: 0 };
@@ -110,6 +113,23 @@ export function hudView(s: SessionState, settings: Config = config): HudView {
       const verdict = s.pickedId === s.round?.targetId ? copy.result.correct : copy.result.incorrect;
       return text(verdict.headline, verdict.icon);
     }
+  }
+}
+
+export function countdownView(s: SessionState, settings: Config = config): CountdownView {
+  const t = s.elapsedMs;
+  switch (s.state) {
+    case 'COUNTDOWN': {
+      const beat = Math.min(Math.floor(t / settings.countdownStepMs), countdownNumerals.length - 1);
+      return { text: countdownNumerals[beat], strong: true };
+    }
+    case 'TRACKING':
+      if (t < settings.goMs) return { text: copy.countdown.go, strong: true };
+      return { text: String(s.round ? secondsLeft(t, s.round) : 0), strong: false };
+    case 'TRACKING_COMPLETE':
+      return { text: '0', strong: false };
+    default:
+      return { text: '', strong: false };
   }
 }
 
@@ -197,6 +217,7 @@ export function arenaView(
     order,
     slotNumbers: slotNumberOpacity(s, settings),
     input,
+    hideCursor: s.state === 'TRACKING',
   };
 }
 

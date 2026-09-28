@@ -85,7 +85,7 @@ Meet your target → Remember it → Follow it → Don't lose it → Time's up �
 | 2 | Round is built from the current settings (§16): `ballCount` balls (default 15) at random interior positions, one chosen as target, names shuffled. | — |
 | 3 | Intro: all balls shown stationary in the arena; the target is highlighted and labelled. HUD: "Your target is Alpha. Keep your eyes on it." | 2.5 s |
 | 4 | Countdown 3 → 2 → 1, large in the arena center behind the balls; the HUD keeps the intro line. Balls still stationary, target still highlighted. | 3 s |
-| 5 | Motion starts. The arena shows "GO!" briefly, then the seconds left, 15 → 1, as a faint watermark. HUD "Keep your eyes on Alpha". The cursor hides over the arena. | 15 s |
+| 5 | Motion starts. The arena shows "GO!" briefly, then the seconds left (15 → 1 by default) as a faint watermark. HUD "Keep your eyes on Alpha". The cursor hides over the arena. | the Duration setting, 15 s by default |
 | 6 | The target's highlight fades out early in the motion (§2.1). From then on all balls are identical. | fade ends at 2 s |
 | 7 | Last 5 seconds: HUD "Stay focused!", soft tick. | — |
 | 8 | Time's up: physics freezes, the watermark reads 0, the cursor is back. HUD "Nice! Time's up." | 0.6 s |
@@ -109,13 +109,13 @@ The game is only fun if tracking is the only way to win.
 3. **Identical physics.** The target uses the same spawn, speed, collision and boundary code paths as every other ball. `physics/` contains no reference to `isTarget` or `targetId`.
 4. **Fresh randomness every round.** Target = uniform pick over the round's balls (`Math.floor(Math.random() * ballCount)`). Names are shuffled over the balls. Spawn positions and velocities are random. Repeating the previous target by chance is fine; deliberately avoiding or forcing repeats is not.
 5. **Identity by ID.** `targetId` is stored at round start. Never identify the target by array index, DOM order or slot number during motion.
-6. **Settings are fixed for the round.** Ball count, speed and colors are read when the round is built and locked until it ends (§16); they apply to every ball alike. The target color shows only in the reveal window and from `REVEAL` on. The arena countdown and the hidden cursor belong to the arena, never to a ball.
+6. **Settings are fixed for the round.** Ball count, speed, duration and colors are read when the round is built and locked until it ends (§16); they apply to every ball alike. The target color shows only in the reveal window and from `REVEAL` on. The arena countdown and the hidden cursor belong to the arena, never to a ball.
 
 ---
 
 ## 3. Screens and copy
 
-Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's name, `#{pickedSlot}` / `#{targetSlot}` = slot numbers, `{n}` = the ball-count setting, `{seconds}` = `trackingMs` in seconds, `{color}` = a target color's name. Setting rows give the control's label, then its options or its value.
+Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's name, `#{pickedSlot}` / `#{targetSlot}` = slot numbers, `{n}` = the ball-count setting, `{seconds}` = the duration setting in seconds, `{color}` = a target color's name. Setting rows give the control's label, then its options or its value.
 
 | Moment | Text |
 |---|---|
@@ -143,6 +143,7 @@ Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's na
 | Settings sections | Game · Appearance |
 | Balls setting | Balls · {n} balls |
 | Speed setting | Speed · Slow · Normal · Fast · Extreme |
+| Duration setting | Duration · {seconds} seconds |
 | Ball color setting | Ball color · Blue · Purple · Green · Orange · Cyan |
 | Target color setting | Target color · Red · Pink · Yellow · White |
 | Color hint | Hard to tell apart from the balls. Try {color}. |
@@ -238,7 +239,7 @@ The target's highlight never depends on its color: the ★, the name label and t
 
 Runs only in `TRACKING`. Pure functions over the physical part of each ball (`Body`: position, velocity, radius), so physics never sees ids, names or the target; no DOM access; deterministic given inputs (the random source for the two fallbacks below is an input, `Math.random` by default).
 
-- **Timestep.** Fixed `physicsHz = 120`. The rAF loop accumulates frame time clamped to `maxFrameMs = 50` and steps the world. Rendering interpolates positions between the last two steps, so motion stays smooth when a display's refresh rate is not a multiple of 120 Hz. The 15 s timer, the reveal fade and every phase timer use this same simulation clock, so a hidden or throttled tab pauses the round instead of desyncing it.
+- **Timestep.** Fixed `physicsHz = 120`. The rAF loop accumulates frame time clamped to `maxFrameMs = 50` and steps the world. Rendering interpolates positions between the last two steps, so motion stays smooth when a display's refresh rate is not a multiple of 120 Hz. The tracking timer, the reveal fade and every phase timer use this same simulation clock, so a hidden or throttled tab pauses the round instead of desyncing it.
 - **Speed.** The round's speed is `baseSpeed × speedFactor`, where `speedFactor` comes from the Speed setting (§16): Slow 0.7, Normal 1, Fast 1.3, Extreme 1.6 (`speedPresets`). Spawn speed, the regulation target and the speed band all follow it. Each step runs as `⌈speedFactor⌉` equal substeps, so no ball moves further per substep than at Normal and collisions stay as clean at Extreme.
 - **Spawn.** Rejection-sample positions with `|p| ≤ 1 − r − spawnMargin` and pairwise center distance `≥ 2r + spawnGap`. Direction uniform random; speed `baseSpeed × speedFactor × rand(spawnSpeedRange)` (default 0.9–1.1).
 - **Integrate.** `p += v · dt`.
@@ -267,7 +268,7 @@ Never teleport balls, never reposition them per frame, never treat the target di
 ## 8. Selection, reveal, result
 
 - After `settleMs`, each ball element becomes `<button aria-label="Ball {slot}">`. Tab order = slot order. Enter/Space or tap selects; arrow keys (and Home/End) move focus around the ring. Visible hover/press and `:focus-visible` states. Do not move focus into the ring automatically.
-- The first activation locks input immediately; later activations are ignored. The picked ball gets the `picked` state; HUD "Checking..."; wait `suspenseMs`. Through `CHECKING` and `REVEAL` the balls stay focusable but `aria-disabled`, so keyboard focus isn't dropped; in `RESULT` focus moves to Play Again and the arena becomes inert.
+- The first activation locks input immediately; later activations are ignored. The picked ball gets the `picked` state; HUD "Checking..."; wait `suspenseMs`. Through `CHECKING` and `REVEAL` the balls stay focusable but `aria-disabled`, so keyboard focus isn't dropped; in `RESULT` focus moves to Play Again and the balls become inert.
 - `REVEAL`: the target takes `revealed-correct` or `revealed-target`; a wrong pick takes `revealed-wrong-pick`. Score updates now. Play the correct/incorrect sound. The HUD shows the headline. Hold `revealMs`.
 - `RESULT`: result card (§3), stats updated, Play Again focused. The arena keeps showing the reveal. The HUD is empty while the card is up, as on the start screen.
 - Pointer and keyboard input on balls is ignored in every state except `SELECTION`.
@@ -289,7 +290,7 @@ Never teleport balls, never reposition them per frame, never treat the target di
 - Options `light | dark | system`, default `system`, chosen in Settings (§16). `system` follows `prefers-color-scheme` live through a `matchMedia` listener.
 - Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow` (`--on-accent` also colors the glyphs on balls). Every screen, card, button, the HUD, the settings drawer and the arena use them. `--ball` and `--target` follow the colors chosen in Settings.
 - Look: modern, minimal and calm with a futuristic, slightly arcade edge; a polished brain-training game, not a generic web app, an admin dashboard or a children's game. Soft neutral background, white/slate surfaces, medium-blue balls and a red target by default; the dark theme is deep navy/charcoal. Rounded corners, light shadows; the arena is the focus. The Play typeface, the circular arena and the big center countdown are the game's identity.
-- Typography: Play (Google Fonts, weights 400 and 700, `display=swap`) everywhere: title, headings, buttons, HUD, names, countdown, stats, settings, result. It is set as `font-family: "Play", <system stack>`, so the system font takes over offline. Hierarchy: title and target name large and bold; the countdown very large and bold; instructions and settings medium; buttons medium and bold; secondary information smaller and regular. No other typeface.
+- Typography: Play (Google Fonts, weights 400 and 700, `display=swap`, loaded without blocking the first paint) everywhere: title, headings, buttons, HUD, names, countdown, stats, settings, result. It is set as `font-family: "Play", <system stack>`, so the system font takes over offline. Hierarchy: title and target name large and bold; the countdown very large and bold; instructions and settings medium; buttons medium and bold; secondary information smaller and regular. No other typeface.
 - Persist under `followone.theme`; wrap all localStorage access in try/catch and fall back to defaults.
 - Apply the stored theme from a tiny inline script in `<head>` before stylesheets load to avoid a flash.
 - Contrast: text ≥ 4.5:1; every ball and target color ≥ 3:1 against the arena in both themes; ball and target colors distinguishable for common color-vision deficiencies (§16), plus the glyphs.
@@ -341,7 +342,10 @@ export const config = {
   countdownFrom: 3,         // countdown shows 3, 2, 1
   countdownStepMs: 1000,
   goMs: 500,
-  trackingMs: 15000,
+  trackingMs: 15000,       // default; Settings allows trackingMsMin..trackingMsMax in trackingMsStep steps (§16)
+  trackingMsMin: 10000,
+  trackingMsMax: 60000,
+  trackingMsStep: 5000,
   revealHoldMs: 1500,
   revealFadeMs: 500,
   finalWarningS: 5,
@@ -375,14 +379,14 @@ export const config = {
 
 ## 12. State machine
 
-One explicit machine in `game/stateMachine.ts`. All transitions go through `transition(to)`; illegal transitions throw in development and are ignored in production. Player actions (Start Game, a pick, Play Again) are simply ignored outside the state that accepts them. Phase timers are driven by the simulation clock in the single rAF loop: a state's time is counted in whole physics steps, so `trackingMs` is exactly 1 800 steps of motion.
+One explicit machine in `game/stateMachine.ts`. All transitions go through `transition(to)`; illegal transitions throw in development and are ignored in production. Player actions (Start Game, a pick, Play Again) are simply ignored outside the state that accepts them. Phase timers are driven by the simulation clock in the single rAF loop: a state's time is counted in whole physics steps, so the default 15 s of tracking is exactly 1 800 steps of motion.
 
 | State | On enter | Exit |
 |---|---|---|
 | `IDLE` | Start screen visible; arena empty or faint; every setting live. | Start Game → `TARGET_INTRO` |
-| `TARGET_INTRO` | `round++`; build the round from the current ball-count and speed settings (spawn, target, names) and lock them (§16); render all balls stationary; target in `target` state; HUD intro copy; unlock audio. | after `introMs` → `COUNTDOWN` |
+| `TARGET_INTRO` | `round++`; build the round from the current ball-count, speed and duration settings (spawn, target, names) and lock them (§16); render all balls stationary; target in `target` state; HUD intro copy; unlock audio. | after `introMs` → `COUNTDOWN` |
 | `COUNTDOWN` | The arena countdown shows `countdownFrom` … 1 (3, 2, 1), one per `countdownStepMs`, tick each; the HUD keeps the intro copy; balls stationary, target still highlighted. | after `countdownFrom` × `countdownStepMs` → `TRACKING` |
-| `TRACKING` | Physics on; the arena shows GO! for `goMs` (GO sound), then the seconds left, `ceil(remaining)`; HUD "Keep your eyes on {name}"; highlight fades between `revealHoldMs` and `revealHoldMs + revealFadeMs`; at ≤ `finalWarningS` s remaining HUD "Stay focused!" + soft tick. The cursor is hidden over the arena. | elapsed ≥ `trackingMs` → `TRACKING_COMPLETE` |
+| `TRACKING` | Physics on; the arena shows GO! for `goMs` (GO sound), then the seconds left, `ceil(remaining)`; HUD "Keep your eyes on {name}"; highlight fades between `revealHoldMs` and `revealHoldMs + revealFadeMs`; at ≤ `finalWarningS` s remaining HUD "Stay focused!" + soft tick. The cursor is hidden over the arena. | elapsed ≥ the round's duration → `TRACKING_COMPLETE` |
 | `TRACKING_COMPLETE` | Physics off, positions frozen; the arena countdown reads 0; the cursor is back; HUD "Nice! Time's up."; freeze sound. | after `freezeMs` → `RETURNING` |
 | `RETURNING` | Assign slots (§7); glide; the arena countdown fades out; HUD "Getting into position..."; slot numbers fade in. | after `returnMs` → `SELECTION` |
 | `SELECTION` | After `settleMs`, balls become buttons; HUD "Which one was {name}?" (until then it keeps "Getting into position..."). | player picks → `CHECKING` |
@@ -390,7 +394,7 @@ One explicit machine in `game/stateMachine.ts`. All transitions go through `tran
 | `REVEAL` | Apply reveal states (§5); update score; play sound; HUD shows the headline. | after `revealMs` → `RESULT` |
 | `RESULT` | Result card + stats; focus Play Again; HUD empty; settings unlock. | Play Again → `TARGET_INTRO` |
 
-Theme and sound work in every state; ball count, speed and colors are locked from `TARGET_INTRO` through `REVEAL` (§16). Ball input is only live in `SELECTION`.
+Theme and sound work in every state; ball count, speed, duration and colors are locked from `TARGET_INTRO` through `REVEAL` (§16). Ball input is only live in `SELECTION`.
 
 The arena countdown is empty outside `COUNTDOWN`, `TRACKING` and `TRACKING_COMPLETE` (where it reads 0), apart from its fade-out in `RETURNING`.
 
@@ -409,8 +413,8 @@ The arena countdown is empty outside `COUNTDOWN`, `TRACKING` and `TRACKING_COMPL
 v1.1:
 
 8. **Settings drawer, ball count and speed.** `settings/` (defaults, validation, persistence, locking); the ⚙ button and drawer with Balls, Speed, Theme and Sound (theme and sound leave the header); ball radius, ring and names for 10–30 balls; speed presets with substeps. Tests for every count and preset.
-9. **Ball and target colors.** Palettes with a tone per theme, the pair-distance guard and its hint, swatches in the drawer.
-10. **Arena countdown, cursor and typography.** The watermark countdown (the HUD timer goes), the hidden cursor over the arena while tracking, the Play typeface and type hierarchy, a visual-identity pass.
+9. **Duration, arena countdown, cursor and typography.** The Duration setting; the watermark countdown (the HUD timer goes); the hidden cursor over the arena while tracking; the Play typeface and type hierarchy; a visual-identity pass.
+10. **Ball and target colors.** Palettes with a tone per theme, the pair-distance guard and its hint, swatches in the drawer.
 11. **Acceptance (v1.1).** Walk the new §14 items at 10, 15 and 30 balls and every speed, in both themes, on phone and desktop sizes.
 
 ---
@@ -421,7 +425,7 @@ v1.1:
 - [ ] Start screen works; Start Game begins a round.
 - [ ] Target is shown in the arena, highlighted and named, before the countdown.
 - [ ] 3-2-1-GO countdown works in the arena; motion starts on GO.
-- [ ] Timer counts 15 → 1 in the arena and freezes at 0.
+- [ ] Timer counts down from the round's duration (15 by default) to 1 in the arena and freezes at 0.
 - [ ] Balls glide to the ring; slot numbers appear; player can pick exactly one ball.
 - [ ] Input locks after the pick; "Checking..." shows; reveal happens after the delay.
 - [ ] Correct and incorrect results both display with the right copy and highlights.
@@ -434,7 +438,7 @@ v1.1:
 - [ ] Spawn positions are never ring slots; slots are assigned only at the freeze.
 - [ ] `physics/` contains no reference to the target.
 - [ ] Target, names, spawn positions and velocities are re-randomized every round.
-- [ ] Ball count, speed and colors can't change mid-round; the target color never shows between the fade and `REVEAL`.
+- [ ] Ball count, speed, duration and colors can't change mid-round; the target color never shows between the fade and `REVEAL`.
 
 **Physics**
 - [ ] Balls move continuously, bounce off the arena edge, collide and push each other.
@@ -444,14 +448,14 @@ v1.1:
 
 **Settings**
 - [ ] ⚙ opens the drawer from the left; ✕, Esc and the backdrop close it; focus returns to ⚙; no horizontal scroll on phones.
-- [ ] Balls (10–30, value shown), Speed (four presets), Ball color (5), Target color (4), Theme and Sound all work with pointer and keyboard.
-- [ ] All six settings persist across reloads; a first visit gets 15 balls, Normal, Blue, Red, System, sound on.
-- [ ] Ball count, speed and colors are locked, with the note, from `TARGET_INTRO` through `REVEAL` and apply from the next round; theme and sound always work.
+- [ ] Balls (10–30, value shown), Speed (four presets), Duration (10–60 s, value shown), Ball color (5), Target color (4), Theme and Sound all work with pointer and keyboard.
+- [ ] All seven settings persist across reloads; a first visit gets 15 balls, Normal, 15 seconds, Blue, Red, System, sound on.
+- [ ] Ball count, speed, duration and colors are locked, with the note, from `TARGET_INTRO` through `REVEAL` and apply from the next round; theme and sound always work.
 - [ ] Balls resize with the count (largest at 10, smallest at 30); every count spawns, rings without overlaps, numbers slots 1..n and uses unique names.
 - [ ] A hard-to-tell color pair shows the hint and its one-tap fix; no pair is indistinguishable.
 
 **Arena countdown, cursor, typography**
-- [ ] 3·2·1 (strong), then GO! and 15…1 (faint), large in the arena center behind the balls, never blocking a pick; 0 at the freeze; gone for the ring.
+- [ ] 3·2·1 and GO! (strong), then the seconds left (faint), large in the arena center behind the balls, never blocking a pick; 0 at the freeze; gone for the ring.
 - [ ] The cursor hides over the arena only while tracking, and comes back when it leaves the arena or tracking ends.
 - [ ] Play is the typeface everywhere, with a clear hierarchy; the system font takes over offline.
 
@@ -482,12 +486,12 @@ Difficulty levels beyond the ball-count and speed settings (and scoring by diffi
 
 ## 16. Settings
 
-A first-time player never needs Settings: the defaults are the standard game (15 balls, Normal speed, Blue balls, Red target, System theme, sound on). Settings exist for customization, not as a step before playing.
+A first-time player never needs Settings: the defaults are the standard game (15 balls, Normal speed, 15 seconds, Blue balls, Red target, System theme, sound on). Settings exist for customization, not as a step before playing.
 
 **Opening.** A small ⚙ button at the left end of the header (accessible name "Settings", ≥ 44 px hit area) opens the settings drawer: a modal `<dialog>` that slides in from the left over a subtle backdrop, with the game still visible behind it. It is about 360 px wide on desktop and nearly full width on phones, never wider than the viewport, and scrolls vertically when the viewport is short. ✕ ("Close settings"), Esc, or a click or tap on the backdrop closes it, and focus returns to ⚙. Opening Settings doesn't pause the round.
 
 **Layout.** Compact, calm and modern, not an admin dashboard: two short sections, one row per setting, the same tokens as the rest of the game.
-- **Game.** Balls: a slider from `ballCountMin` (10) to `ballCountMax` (30) in steps of 1, with its value shown as "{n} balls". Speed: a segmented choice, Slow · Normal · Fast · Extreme.
+- **Game.** Balls: a slider from `ballCountMin` (10) to `ballCountMax` (30) in steps of 1, with its value shown as "{n} balls". Speed: a segmented choice, Slow · Normal · Fast · Extreme. Duration: how long the balls move, a slider from 10 to 60 seconds in steps of 5 (`trackingMsMin`, `trackingMsMax`, `trackingMsStep`), shown as "{seconds} seconds".
 - **Appearance.** Ball color and Target color: rows of swatches. Theme: a segmented choice, Light · Dark · System. Sound: a switch, On · Off.
 - Every control is native and keyboard-operable: a range input, radio groups for the choices and swatches (arrow keys move within a group), and a `role="switch"` button for sound. A change applies at once (no Save button) and persists.
 
@@ -496,6 +500,6 @@ A first-time player never needs Settings: the defaults are the standard game (15
 - Every ball/target pair stays distinguishable: the distance between the two tones, under normal vision and simulated protanopia, deuteranopia and tritanopia, never falls below a floor (unit-tested). A pair that is distinguishable but not comfortably so shows a subtle hint under the target swatches, "Hard to tell apart from the balls. Try {color}.", where the named color is a one-tap fix: the most distinct target color for those balls.
 - The chosen colors apply to every ball alike; the target color only shows while the target is highlighted (§2.1) and from `REVEAL` on.
 
-**During a round.** From `TARGET_INTRO` through `REVEAL`, Balls, Speed, Ball color and Target color are disabled under the note "Some settings are locked until this round ends."; the round keeps the values it was built with. Theme and sound work in every state. In `IDLE` and `RESULT` everything is live: a new ball count or speed applies from the next Start Game or Play Again, and new colors show at once.
+**During a round.** From `TARGET_INTRO` through `REVEAL`, Balls, Speed, Duration, Ball color and Target color are disabled under the note "Some settings are locked until this round ends."; the round keeps the values it was built with. Theme and sound work in every state. In `IDLE` and `RESULT` everything is live: a new ball count, speed or duration applies from the next Start Game or Play Again, and new colors show at once.
 
-**Persistence.** Ball count, speed, ball color and target color are stored together under `followone.settings` as JSON; theme and sound keep `followone.theme` and `followone.sound`. Every access goes through the try/catch storage wrappers. Each stored field is validated on its own (a ball count is rounded and clamped to 10–30; unknown names fall back to the default), so one bad field never resets the others.
+**Persistence.** Ball count, speed, duration, ball color and target color are stored together under `followone.settings` as JSON; theme and sound keep `followone.theme` and `followone.sound`. Every access goes through the try/catch storage wrappers. Each stored field is validated on its own (a ball count is rounded and clamped to 10–30, a duration snapped to 5 s steps within 10–60 s; unknown names fall back to the default), so one bad field never resets the others.
