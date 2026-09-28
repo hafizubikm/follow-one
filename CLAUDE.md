@@ -1,6 +1,6 @@
 # Follow One
 
-Browser cognitive-tracking game: follow one named ball among 15 bouncing balls for 15 s, then pick it out. Static site, no backend. Solo project, built in phases with Claude Code.
+Browser cognitive-tracking game: follow one named ball among 15 bouncing balls (10–30 in Settings) for 15 s, then pick it out. Static site, no backend. Solo project, built in phases with Claude Code.
 
 ## Source of truth
 
@@ -25,7 +25,7 @@ Phase 1 creates these scripts. Package manager is npm.
 - Vite + TypeScript (`strict: true`, no `any`), ES modules, no UI framework, no runtime dependencies. Plain CSS with custom properties; no CSS framework.
 - Module layout follows SPEC §0, plus `src/copy.ts` holding the SPEC §3 copy table. No user-facing strings anywhere else.
 - One concern per file; no file over ~300 lines.
-- `physics/`, `game/`, `names/` and `util/` are pure: no DOM, no `window`, importable in Vitest.
+- `physics/`, `game/`, `names/`, `settings/` and `util/` are pure: no DOM, no `window`, importable in Vitest.
 - All positions and radii are normalized arena units (center 0,0, radius 1). Only `render/` converts to pixels.
 - One requestAnimationFrame loop and one simulation clock drive physics, the countdown timer and every phase timer. No `setTimeout`/`setInterval` for game timing.
 - Comments only where the *why* isn't obvious. No README padding, no changelog prose.
@@ -37,6 +37,7 @@ Phase 1 creates these scripts. Package manager is npm.
 - Ring slots are assigned only at the freeze, by angular order (SPEC §7). Balls never spawn on slots.
 - Target, names, spawn positions and velocities are re-randomized every round with `Math.random`; no seeding, no "avoid repeats" logic.
 - Ball input is live only in SELECTION; the first activation locks input.
+- Ball count, speed and colors are read when a round is built and locked until it ends (SPEC §16).
 
 ## Workflow
 
@@ -49,7 +50,7 @@ Phase 1 creates these scripts. Package manager is npm.
 
 ## Don't
 
-- Add libraries, frameworks, CDNs, web fonts, images or audio files. Sound is synthesized with the Web Audio API.
+- Add libraries, frameworks, CDNs, web fonts, images or audio files. The one exception is the Play typeface from Google Fonts (SPEC §10). Sound is synthesized with the Web Audio API.
 - Use canvas unless explicitly asked; balls are DOM elements (SPEC §5).
 - Touch `localStorage` without try/catch.
 - Add a backend, analytics, service worker, leaderboard, or anything in SPEC §15.
