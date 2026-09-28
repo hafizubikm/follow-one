@@ -1,6 +1,6 @@
 import { textRuns } from '../copy.ts';
 import type { HudView } from '../game/view.ts';
-import { el } from './dom.ts';
+import { el, icon } from './dom.ts';
 
 export interface Hud {
   readonly el: HTMLElement;
@@ -17,6 +17,7 @@ export function createHud(reducedMotion: () => boolean): Hud {
   hud.append(message, timer);
 
   let shownMessage = '';
+  let shownIcon = '';
   let shownTimer: number | null = null;
 
   const pop = (node: HTMLElement, keyframes: Keyframe[], duration: number) => {
@@ -27,9 +28,11 @@ export function createHud(reducedMotion: () => boolean): Hud {
     el: hud,
     // Writes only on change: every write to the live region is announced.
     render(view) {
-      if (view.message !== shownMessage) {
+      if (view.message !== shownMessage || view.icon !== shownIcon) {
         shownMessage = view.message;
-        message.replaceChildren(...textRuns(view.message).map((run) => (run.strong ? el('strong', '', run.text) : run.text)));
+        shownIcon = view.icon;
+        const runs = textRuns(view.message).map((run) => (run.strong ? el('strong', '', run.text) : run.text));
+        message.replaceChildren(...(view.icon ? [icon(view.icon), ' '] : []), ...runs);
         message.toggleAttribute('data-big', view.big);
         // Decorative: countdown numerals scale in (SPEC §10 removes this under reduced motion).
         if (view.big) pop(message, [{ transform: 'scale(1.4)', opacity: 0 }, { transform: 'none', opacity: 1 }], 320);

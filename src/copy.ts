@@ -24,6 +24,15 @@ export const copy = {
 
   glyphs: { target: '★', correct: '✓', wrong: '✕' },
 
+  /** A ball's accessible name while it can be picked (SPEC §8). */
+  ball: 'Ball {slot}',
+
+  result: {
+    correct: { icon: '🎯', headline: 'Nailed it!', subline: 'You found {name}.' },
+    incorrect: { icon: '👀', headline: 'Not quite!', subline: 'You picked {picked} (#{pickedSlot}). {name} was #{targetSlot}.' },
+    playAgain: 'Play Again',
+  },
+
   sound: {
     on: { icon: '🔊', label: 'Sound on' },
     off: { icon: '🔇', label: 'Sound off' },
@@ -41,6 +50,7 @@ export const copy = {
     streak: 'Streak',
     best: 'Best',
     streakIcon: '🔥',
+    accuracyValue: '{percent}%',
   },
 } as const;
 

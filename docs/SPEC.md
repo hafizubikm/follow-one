@@ -149,7 +149,7 @@ Never use technical language ("tracking phase initiated", "select target entity"
 - Use `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and safe-area insets for header/footer padding.
 - Overlays never cover the balls during `TARGET_INTRO`, `COUNTDOWN`, `TRACKING` or `RETURNING`. Countdown numbers and the timer live in the HUD, not in the arena center.
 - The arena size is computed the same way in every state so the layout never shifts between states.
-- The result card appears below the arena; the arena stays visible with both highlighted balls.
+- The result card appears below the arena; the arena stays visible with both highlighted balls. When the viewport is too short for the card, the page scrolls just enough to show it (the header and HUD go first, the arena stays whole); Play Again scrolls back to the top.
 
 **Normalized coordinates.** All positions and radii are stored in arena units: center `(0, 0)`, arena radius `1`. The renderer multiplies by the current pixel radius each frame. Resizing or rotating mid-round therefore just rescales; physics never sees pixels.
 
@@ -200,7 +200,7 @@ interface NamePack { id: string; label: string; names: string[] } // ≥ ballCou
 | `revealed-target` | `--target` | ★ | name | reveal/result when incorrect |
 | `revealed-wrong-pick` | `--ball` | ✕ | outline + picked name | reveal/result when incorrect |
 
-Slot numbers (1–15) render as small muted labels just outside each slot during `SELECTION`, `CHECKING`, `REVEAL` and `RESULT` only.
+Slot numbers (1–15) render as small muted labels just outside each slot (on the side away from the center) during `SELECTION`, `CHECKING`, `REVEAL` and `RESULT` only. On the ring, name labels go on the side toward the center, so the two never collide.
 
 ---
 
@@ -227,16 +227,17 @@ Never teleport balls, never reposition them per frame, never treat the target di
 - 15 slots on a circle of radius `slotRadius = 0.85`, slot 1 at 12 o'clock, numbered clockwise. Slot `k` center angle: `θk = 2π (k − 1) / 15` measured clockwise from 12 o'clock.
 - **Assignment at the freeze:** compute each ball's angle `θ = atan2(x, −y)` normalized to `[0, 2π)` (clockwise from 12 o'clock in screen coordinates), sort ascending (tie-break by distance from center), and give the k-th ball slot `k`. Each ball therefore glides a short distance to its own part of the ring; paths rarely cross, so a player who was tracking can follow the glide, and one who wasn't gains nothing.
 - **Glide:** straight line, ease-in-out, `returnMs = 1000` (`returnMsReducedMotion = 600`), physics off. Brief overlaps during the glide are acceptable.
-- Slot numbers fade in during the last part of the glide.
+- Slot numbers fade in during the last part of the glide (from `slotLabelFadeFrom` = 60% of it).
+- From slot assignment on, the ball elements are in slot order in the DOM, so tab order is slot order and DOM position says nothing that the ring doesn't.
 
 ---
 
 ## 8. Selection, reveal, result
 
-- After `settleMs`, each ball element becomes `<button aria-label="Ball {slot}">`. Tab order = slot order. Enter/Space or tap selects. Visible hover/press and `:focus-visible` states. Do not move focus into the ring automatically.
-- The first activation locks input immediately; later activations are ignored. The picked ball gets the `picked` state; HUD "Checking..."; wait `suspenseMs`.
-- `REVEAL`: the target takes `revealed-correct` or `revealed-target`; a wrong pick takes `revealed-wrong-pick`. Score updates now. Play the correct/incorrect sound. Hold `revealMs`.
-- `RESULT`: result card (§3), stats updated, Play Again focused. The arena keeps showing the reveal.
+- After `settleMs`, each ball element becomes `<button aria-label="Ball {slot}">`. Tab order = slot order. Enter/Space or tap selects; arrow keys (and Home/End) move focus around the ring. Visible hover/press and `:focus-visible` states. Do not move focus into the ring automatically.
+- The first activation locks input immediately; later activations are ignored. The picked ball gets the `picked` state; HUD "Checking..."; wait `suspenseMs`. Through `CHECKING` and `REVEAL` the balls stay focusable but `aria-disabled`, so keyboard focus isn't dropped; in `RESULT` focus moves to Play Again and the arena becomes inert.
+- `REVEAL`: the target takes `revealed-correct` or `revealed-target`; a wrong pick takes `revealed-wrong-pick`. Score updates now. Play the correct/incorrect sound. The HUD shows the headline. Hold `revealMs`.
+- `RESULT`: result card (§3), stats updated, Play Again focused. The arena keeps showing the reveal. The HUD is empty while the card is up, as on the start screen.
 - Pointer and keyboard input on balls is ignored in every state except `SELECTION`.
 
 ---
@@ -308,6 +309,7 @@ export const config = {
   freezeMs: 600,
   returnMs: 1000,
   returnMsReducedMotion: 600,
+  slotLabelFadeFrom: 0.6,   // slot numbers fade in over the rest of the glide
   settleMs: 300,
   suspenseMs: 1000,
   revealMs: 800,
@@ -335,10 +337,10 @@ One explicit machine in `game/stateMachine.ts`. All transitions go through `tran
 | `TRACKING` | Physics on; timer starts; HUD "GO!" for `goMs` (GO sound) then "Keep your eyes on {name}"; highlight fades between `revealHoldMs` and `revealHoldMs + revealFadeMs`; at ≤ `finalWarningS` s remaining HUD "Stay focused!" + soft tick. Timer shows `ceil(remaining)`. | elapsed ≥ `trackingMs` → `TRACKING_COMPLETE` |
 | `TRACKING_COMPLETE` | Physics off, positions frozen; HUD "Nice! Time's up."; freeze sound. | after `freezeMs` → `RETURNING` |
 | `RETURNING` | Assign slots (§7); glide; HUD "Getting into position..."; slot numbers fade in. | after `returnMs` → `SELECTION` |
-| `SELECTION` | After `settleMs`, balls become buttons; HUD "Which one was {name}?". | player picks → `CHECKING` |
+| `SELECTION` | After `settleMs`, balls become buttons; HUD "Which one was {name}?" (until then it keeps "Getting into position..."). | player picks → `CHECKING` |
 | `CHECKING` | Lock input; picked ball outlined; HUD "Checking...". | after `suspenseMs` → `REVEAL` |
-| `REVEAL` | Apply reveal states (§5); update score; play sound. | after `revealMs` → `RESULT` |
-| `RESULT` | Result card + stats; focus Play Again. | Play Again → `TARGET_INTRO` |
+| `REVEAL` | Apply reveal states (§5); update score; play sound; HUD shows the headline. | after `revealMs` → `RESULT` |
+| `RESULT` | Result card + stats; focus Play Again; HUD empty. | Play Again → `TARGET_INTRO` |
 
 Theme and sound controls work in every state. Ball input is only live in `SELECTION`.
 

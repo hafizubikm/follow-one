@@ -67,6 +67,9 @@ export function startDebug(arena: Arena): void {
     render(alpha) {
       arena.render({
         balls: bodies.map((b, i) => neutralBall(prev[i].x + (b.x - prev[i].x) * alpha, prev[i].y + (b.y - prev[i].y) * alpha)),
+        order: bodies.map((_, i) => i),
+        slotNumbers: 0,
+        input: 'off',
       });
 
       frames++;

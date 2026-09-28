@@ -127,3 +127,36 @@
 
 ### Known issues / notes
 - The DOM fairness check needs a real browser (the lazy style sync is Chrome behavior), so it isn't in Vitest; the view-level test covers the logic, and the renderer comment records the pitfall.
+
+## 2026-09-29 — Phase 5: Ring, selection, reveal, result, scoring
+
+### Done
+- `game/slots.ts`: slot geometry (slot 1 at 12 o'clock, clockwise), `clockAngle`, `assignSlots` (angle, then distance; positions only), ease-in-out `glidePoint` that lands exactly on both ends.
+- `game/score.ts`: `100 + 25 × (streak − 1)`, misses reset the streak, best streak, rounded accuracy (0% before any answer).
+- Session: RETURNING assigns slots from the frozen positions and glides every ball onto its slot (`returnMs`, or `returnMsReducedMotion` when reduced motion is on at glide start); SELECTION goes live after `settleMs`; the first pick locks input (→ CHECKING); REVEAL scores and emits the answer; RESULT waits; Play Again builds a fresh round.
+- View: REVEAL puts the verdict in the HUD; RESULT's HUD is empty; picked / revealed-correct / revealed-target / revealed-wrong-pick looks; input mode off/live/locked; "Ball {slot}" names while the ring is reachable; DOM order = slot order from slot assignment on; slot numbers fade in over the last 40% of the glide; result card content.
+- Arena renderer: slot numbers just outside each slot; on the ring names point at the center, and a wrong pick within 3 slots of the target gets its name one row further in; inert when input is off, `aria-disabled` while locked so focus isn't dropped; clicks map to ids through a WeakMap (no ids in the DOM).
+- `input/selection.ts`: click/tap/Enter/Space → pick through one guard; arrows, Home and End move around the ring.
+- Result card: verdict (emoji hidden from screen readers), sub-line, the five stats, Play Again (focused on entry, described by the sub-line). It hangs below the arena; if the viewport is too short the page scrolls just enough (header and HUD first), and Play Again scrolls back to the top. Landscape phones get a compact two-row card. The bounce-in and the reveal pop are decorative and off under reduced motion.
+- Tests (134): ring geometry and clockwise numbering; slot assignment order, tie-break, order-independence; spawn never on a slot center and never slotted; glide endpoints, straight path, easing; scoring sequences and accuracy; session glide lands exactly on the slots; reduced-motion glide length; pick guards (motion, settle, non-ball, second pick); scoring only at REVEAL; streak across rounds; Play Again; HUD verdict; input modes; aria names; DOM order; slot-number fade; looks for correct and wrong picks; neighbour name stepping; result card text; fairness now step by step through selection.
+
+### Spec edits
+- §4: the result card may scroll the page on short viewports; Play Again scrolls back. §5: slot numbers on the outer side, names on the inner side. §7: new key `slotLabelFadeFrom: 0.6` ("the last part of the glide"); DOM in slot order. §8: arrows/Home/End; balls stay focusable but `aria-disabled` through CHECKING/REVEAL; REVEAL shows the verdict in the HUD; RESULT's HUD is empty. §11: `slotLabelFadeFrom`. §12: SELECTION/REVEAL/RESULT rows updated to match.
+
+### Verified in the browser (headless Chrome, full rounds)
+- 1024×768 light, keyboard only: clicking the target during tracking did nothing; at SELECTION the HUD asked for the target, DOM order was Ball 1…15, every ball's markup matched (minus position and slot name), tabindex 0. Tab order: sound, Light, Dark, System, Ball 1, Ball 2. →/←/Home/End moved focus as expected with a visible ring. Enter picked: "Checking...", picked outline, focus kept, a second click ignored. REVEAL: "🎯 Nailed it!", ✓ on the target, strip updated. RESULT: HUD empty, card text right, Play Again focused, page scrolled 76 px with card and whole arena visible, arena inert. Enter on Play Again: round 2 intro at scroll 0.
+- 375×812 dark, wrong pick: ✕ + outline + name on the pick, ★ + name on the target, sub-line "You picked … (#1). … was #10."; the card fits without scrolling.
+- 812×375 light: first version scrolled 109 px and hid the top of the ring (both highlighted balls there), and neighbouring names collided. Fixed with the compact card and name stepping; now it scrolls 31–64 px with the arena whole and the stats on one row.
+- 1024×768 dark with a neighbour pick: names don't overlap; card clear of the bottom edge (footer padding now counts toward the scrollable area).
+- The phase 4 DOM fairness check still passes 3/3.
+
+### SPEC §14 items touched
+- Verified: balls glide to the ring, slot numbers appear, exactly one ball can be picked; input locks after the pick, "Checking..." shows, the reveal follows after the delay; correct and incorrect results show the right copy and highlights; score, streak, best, accuracy and round update (tests + browser); Play Again starts a fresh round with a new target; spawn positions are never ring slots and slots are assigned only at the freeze; nothing in the DOM distinguishes the target during motion, returning or selection; keyboard-only play works through a whole round; every color state has a glyph or label; no horizontal scroll at 1024×768, 375×812, 812×375; all Vitest tests pass.
+
+### Deferred
+- Sound, reduced-motion pass, mobile QA and a11y review: phase 6.
+- SPEC §9's optional `followone.best` persistence isn't implemented: it would change what "Best 🔥" means (session vs all-time), which the spec doesn't settle.
+
+### Known issues / notes
+- At 812×375 the ring slots are ~38 px apart, so neighbouring 44 px hit areas still overlap slightly (phase 6).
+- The test harness must target `.start-card .button-primary`: Play Again also uses `.button-primary` and comes earlier in the DOM.

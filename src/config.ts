@@ -29,6 +29,7 @@ export const config = {
   freezeMs: 600,
   returnMs: 1000,
   returnMsReducedMotion: 600,
+  slotLabelFadeFrom: 0.6, // slot numbers fade in over the rest of the glide
   settleMs: 300,
   suspenseMs: 1000,
   revealMs: 800,

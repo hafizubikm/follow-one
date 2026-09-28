@@ -1,39 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
-import { createSession, type GameEvent } from '../src/game/session.ts';
-import type { GameState } from '../src/game/stateMachine.ts';
+import { createSession, type Session } from '../src/game/session.ts';
+import { assignSlots, slotPosition } from '../src/game/slots.ts';
+import { started, steps, toLiveSelection, wrongId } from './drive.ts';
 
-const stepMs = 1000 / config.physicsHz;
-const steps = (ms: number) => Math.round(ms / stepMs);
+const positionsOf = (s: Session) => s.round?.balls.map(({ x, y }) => [x, y]);
 
-function started() {
-  const events: Array<{ at: number; event: GameEvent }> = [];
-  let clock = 0;
-  const session = createSession({
-    strict: true,
-    reducedMotion: () => false,
-    onEvent: (event) => events.push({ at: clock, event }),
-  });
-  // Events are stamped with the number of steps completed once the emitting step ends.
-  const run = (n: number) => {
-    for (let i = 0; i < n; i++) {
-      clock++;
-      session.step();
-    }
-  };
-  const runUntil = (state: GameState) => {
-    for (let guard = 0; session.state !== state; guard++) {
-      if (guard > 100_000) throw new Error(`never reached ${state}`);
-      run(1);
-    }
-  };
-  expect(session.start()).toBe(true);
-  return { session, events, run, runUntil, clock: () => clock };
-}
-
-const positionsOf = (s: ReturnType<typeof started>['session']) => s.round?.balls.map(({ x, y }) => [x, y]);
-
-describe('session', () => {
+describe('session: into the round', () => {
   it('starts idle, then Start Game builds round 1', () => {
     const idle = createSession({ strict: true, reducedMotion: () => false, onEvent: () => {} });
     expect(idle.state).toBe('IDLE');
@@ -46,10 +19,11 @@ describe('session', () => {
     expect(session.stats.round).toBe(1);
   });
 
-  it('ignores Start Game once a round is running', () => {
+  it('ignores Start Game and Play Again at the wrong time', () => {
     const { session } = started();
     const round = session.round;
     expect(session.start()).toBe(false);
+    expect(session.playAgain()).toBe(false);
     expect(session.round).toBe(round);
     expect(session.stats.round).toBe(1);
   });
@@ -63,7 +37,7 @@ describe('session', () => {
     expect(positionsOf(session)).toEqual(spawn);
   });
 
-  it('moves the balls for exactly trackingMs, then freezes them', () => {
+  it('moves the balls for exactly trackingMs, then freezes them for freezeMs', () => {
     const { session, run, runUntil } = started();
     runUntil('TRACKING');
     const start = positionsOf(session);
@@ -76,8 +50,11 @@ describe('session', () => {
     expect(session.state).toBe('TRACKING_COMPLETE');
     const frozen = positionsOf(session);
     expect(frozen).not.toEqual(start);
-    run(steps(config.freezeMs) * 3);
+    run(steps(config.freezeMs) - 1);
+    expect(session.state).toBe('TRACKING_COMPLETE');
     expect(positionsOf(session)).toEqual(frozen);
+    run(1);
+    expect(session.state).toBe('RETURNING');
   });
 
   it('cues the countdown beats, GO, the final seconds and the freeze on the simulation clock', () => {
@@ -118,10 +95,128 @@ describe('session', () => {
     expect(mid[0].x).toBeCloseTo((before[0].x + after[0].x) / 2, 12);
     expect(mid[0].y).toBeCloseTo((before[0].y + after[0].y) / 2, 12);
   });
+});
 
-  it('renders still balls exactly where they are', () => {
-    const { session } = started();
-    const ball = session.round!.balls[3];
-    expect(session.positions(0.37)[3]).toEqual({ x: ball.x, y: ball.y });
+describe('session: the ring (SPEC §7)', () => {
+  it('assigns slots from the frozen positions and glides every ball onto its slot', () => {
+    const { session, run, runUntil } = started();
+    runUntil('TRACKING_COMPLETE');
+    const frozen = session.round!.balls.map(({ x, y }) => ({ x, y }));
+    expect(session.round!.balls.every((b) => b.slot === null)).toBe(true);
+
+    runUntil('RETURNING');
+    const expected = assignSlots(frozen);
+    expect(session.round!.balls.map((b) => b.slot)).toEqual(expected);
+
+    run(steps(config.returnMs / 2));
+    const halfway = session.round!.balls;
+    halfway.forEach((ball, i) => {
+      const slot = slotPosition(expected[i], config.ballCount, config.slotRadius);
+      const total = Math.hypot(slot.x - frozen[i].x, slot.y - frozen[i].y);
+      const left = Math.hypot(slot.x - ball.x, slot.y - ball.y);
+      if (total > 1e-9) expect(left / total).toBeCloseTo(0.5, 6); // ease-in-out is halfway at t = 0.5
+    });
+
+    run(steps(config.returnMs / 2));
+    expect(session.state).toBe('SELECTION');
+    session.round!.balls.forEach((ball, i) => {
+      expect(ball).toMatchObject(slotPosition(expected[i], config.ballCount, config.slotRadius));
+    });
+  });
+
+  it('shortens the glide under reduced motion', () => {
+    const driven = started();
+    driven.setReducedMotion(true);
+    driven.runUntil('RETURNING');
+    let glideSteps = 0;
+    while (driven.session.state === 'RETURNING') {
+      driven.run(1);
+      glideSteps++;
+    }
+    expect(glideSteps).toBe(steps(config.returnMsReducedMotion));
+  });
+});
+
+describe('session: picking (SPEC §8)', () => {
+  it('ignores picks before selection is live, then takes the first one only', () => {
+    const driven = started();
+    const { session } = driven;
+    driven.runUntil('TRACKING');
+    expect(session.pick(0)).toBe(false);
+    driven.runUntil('SELECTION');
+    expect(session.selectionLive).toBe(false);
+    expect(session.pick(0)).toBe(false); // still settling
+    driven.run(steps(config.settleMs));
+    expect(session.selectionLive).toBe(true);
+    expect(session.pick(99)).toBe(false); // not a ball
+    expect(session.pick(3)).toBe(true);
+    expect(session.state).toBe('CHECKING');
+    expect(session.selectionLive).toBe(false);
+    expect(session.pick(4)).toBe(false);
+    expect(session.pickedId).toBe(3);
+  });
+
+  it('never goes live when the settle is over but the state has moved on', () => {
+    const driven = started();
+    toLiveSelection(driven);
+    driven.session.pick(driven.session.round!.targetId);
+    driven.run(steps(config.suspenseMs) - 1);
+    expect(driven.session.state).toBe('CHECKING');
+    expect(driven.session.selectionLive).toBe(false);
+  });
+
+  it('scores a correct pick at REVEAL, after the suspense', () => {
+    const driven = started();
+    const { session, events } = driven;
+    toLiveSelection(driven);
+    session.pick(session.round!.targetId);
+    driven.run(steps(config.suspenseMs) - 1);
+    expect(session.stats.score).toBe(0); // not before REVEAL
+    driven.run(1);
+    expect(session.state).toBe('REVEAL');
+    expect(session.stats).toMatchObject({ correct: 1, streak: 1, bestStreak: 1, score: 100 });
+    expect(events.at(-1)?.event).toEqual({ type: 'answer', correct: true });
+    driven.run(steps(config.revealMs));
+    expect(session.state).toBe('RESULT');
+  });
+
+  it('scores a wrong pick as a miss', () => {
+    const driven = started();
+    const { session, events } = driven;
+    toLiveSelection(driven);
+    session.pick(wrongId(session));
+    driven.runUntil('REVEAL');
+    expect(session.stats).toMatchObject({ correct: 0, incorrect: 1, streak: 0, score: 0 });
+    expect(events.at(-1)?.event).toEqual({ type: 'answer', correct: false });
+  });
+
+  it('waits in RESULT, then Play Again starts a fresh round with a new layout', () => {
+    const driven = started();
+    const { session } = driven;
+    toLiveSelection(driven);
+    session.pick(session.round!.targetId);
+    driven.runUntil('RESULT');
+    driven.run(10_000);
+    expect(session.state).toBe('RESULT');
+
+    const previous = session.round;
+    expect(session.playAgain()).toBe(true);
+    expect(session.state).toBe('TARGET_INTRO');
+    expect(session.round).not.toBe(previous);
+    expect(session.round!.balls.every((b) => b.slot === null)).toBe(true);
+    expect(session.pickedId).toBeNull();
+    expect(session.stats).toMatchObject({ round: 2, correct: 1, score: 100 });
+  });
+
+  it('keeps the streak going across rounds', () => {
+    const driven = started();
+    const { session } = driven;
+    for (let round = 1; round <= 3; round++) {
+      toLiveSelection(driven);
+      session.pick(session.round!.targetId);
+      driven.runUntil('RESULT');
+      if (round < 3) session.playAgain();
+    }
+    expect(session.stats).toMatchObject({ round: 3, streak: 3, bestStreak: 3, score: 375 });
   });
 });

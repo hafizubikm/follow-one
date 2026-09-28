@@ -18,6 +18,25 @@
   opacity: 0.5;
 }
 
+/* ---------- ring slot numbers (SPEC §5): placed by the renderer, just outside each slot ---------- */
+
+.slot-numbers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.slot-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------- balls ---------- */
 
 .balls {
@@ -42,15 +61,41 @@
 }
 
 .ball-body {
+  --shade: inset 0 calc(var(--ball-d) * -0.06) 0 rgb(0 0 0 / 0.12);
+  --lift: 0 1px 3px rgb(var(--shadow) / 0.18);
+
   display: grid;
   place-items: center;
   width: var(--ball-d);
   height: var(--ball-d);
   border-radius: 50%;
   background: var(--ball);
-  box-shadow:
-    inset 0 calc(var(--ball-d) * -0.06) 0 rgb(0 0 0 / 0.12),
-    0 1px 3px rgb(var(--shadow) / 0.18);
+  box-shadow: var(--shade), var(--lift);
+  transition: transform 120ms ease;
+}
+
+/* Selection: every ball reacts the same way to hover, press and keyboard focus (SPEC §8). */
+.arena[data-input='live'] .ball {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .arena[data-input='live'] .ball:hover .ball-body {
+    transform: scale(1.1);
+  }
+}
+
+.arena[data-input='live'] .ball:active .ball-body {
+  transform: scale(0.92);
+}
+
+.ball:focus-visible {
+  outline: none;
+}
+
+.ball:focus-visible .ball-body {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
 }
 
 .ball-glyph {
@@ -86,6 +131,17 @@
   transform: translate(calc(-50% - var(--shift, 0) * 50%), var(--gap));
 }
 
+/* On the ring: toward the center along (--lx, --ly), the label's near side --reach from the ball's
+   center; --depth steps a second name one row further in when the two balls are neighbours. */
+.ball-label[data-side='inward'] {
+  --reach: calc(var(--gap) + var(--depth, 0) * 1.75rem);
+
+  transform: translate(
+    calc(var(--lx) * var(--reach) - 50% + var(--lx) * 50%),
+    calc(var(--ly) * var(--reach) - 50% + var(--ly) * 50%)
+  );
+}
+
 .ball-label:empty {
   display: none;
 }
@@ -103,6 +159,27 @@
 
 .ball[data-look='target'] :is(.ball-glyph, .ball-label) {
   opacity: var(--strength);
+}
+
+/* picked (checking) and a wrong pick keep the ball color and get a 3 px ring in --text. */
+.ball:is([data-look='picked'], [data-look='revealed-wrong-pick']) .ball-body {
+  box-shadow: var(--shade), 0 0 0 3px var(--text), var(--lift);
+}
+
+/* The real target: coral with ✓ (you found it) or ★ (you didn't). */
+.ball:is([data-look='revealed-correct'], [data-look='revealed-target']) .ball-body {
+  background: var(--target);
+}
+
+/* Decorative pop as the answer appears. */
+.ball[data-look^='revealed'] .ball-body {
+  animation: reveal-pop 420ms cubic-bezier(0.2, 0.8, 0.2, 1.4);
+}
+
+@keyframes reveal-pop {
+  from {
+    transform: scale(0.7);
+  }
 }
 
 .ball[data-look='target']::before {
@@ -131,9 +208,17 @@
     transition: none;
   }
 
+  .ball-body {
+    transition: none;
+  }
+
   /* The pulse is decorative; a still halo keeps the cue. */
   .ball[data-look='target']::before {
     animation: none;
     box-shadow: 0 0 0 calc(var(--ball-d) * 0.16) color-mix(in srgb, var(--target) 35%, transparent);
+  }
+
+  .ball[data-look^='revealed'] .ball-body {
+    animation: none;
   }
 }

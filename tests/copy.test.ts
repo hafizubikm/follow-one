@@ -48,6 +48,19 @@ describe('copy matches SPEC §3', () => {
     expect(copy.hud.checking).toBe(row('Checking (HUD)'));
   });
 
+  it('result card', () => {
+    const { correct, incorrect, playAgain } = copy.result;
+    expect(`${correct.icon} ${correct.headline}`).toBe(row('Correct headline'));
+    expect(correct.subline).toBe(row('Correct sub-line'));
+    expect(`${incorrect.icon} ${incorrect.headline}`).toBe(row('Incorrect headline'));
+    expect(incorrect.subline).toBe(row('Incorrect sub-line'));
+    expect(playAgain).toBe(row('Play again button'));
+  });
+
+  it('ball buttons use the SPEC §8 accessible name', () => {
+    expect(spec).toContain(`<button aria-label="${copy.ball}">`);
+  });
+
   it('header controls', () => {
     const { on, off } = copy.sound;
     expect(`${on.icon} ${on.label} / ${off.icon} ${off.label}`).toBe(row('Sound toggle'));

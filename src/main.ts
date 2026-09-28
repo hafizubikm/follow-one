@@ -10,13 +10,14 @@ import { config } from './config.ts';
 import { startDebug } from './debug.ts';
 import { createSession } from './game/session.ts';
 import type { GameState } from './game/stateMachine.ts';
-import { arenaView, hudView } from './game/view.ts';
+import { arenaView, hudView, resultView } from './game/view.ts';
+import { wireSelection } from './input/selection.ts';
 import { startLoop } from './loop.ts';
 import { createArena } from './render/arena.ts';
 import { el } from './render/dom.ts';
 import { createHeader } from './render/header.ts';
 import { createHud } from './render/hud.ts';
-import { createStartScreen, createStatsStrip, setScreen, type Screen } from './render/screens.ts';
+import { createResultCard, createStartScreen, createStatsStrip, setScreen, type Screen } from './render/screens.ts';
 import { createTheme, systemDarkQuery } from './theme/theme.ts';
 import type { KeyValueStore } from './util/storage.ts';
 
@@ -38,15 +39,6 @@ const app = document.getElementById('app');
 if (!app) throw new Error('index.html is missing #app');
 app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
 
-// The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
-const stage = el('main', 'stage');
-const footer = el('div', 'footer');
-const hud = createHud(reducedMotion);
-const arena = createArena();
-const strip = createStatsStrip();
-footer.append(strip.el);
-stage.append(hud.el, arena.el, footer);
-
 const session = createSession({
   strict: import.meta.env.DEV,
   reducedMotion,
@@ -55,7 +47,20 @@ const session = createSession({
   },
 });
 
-const screenFor = (state: GameState): Screen => (state === 'IDLE' ? 'start' : state === 'RESULT' ? 'result' : 'play');
+// The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
+const stage = el('main', 'stage');
+const footer = el('div', 'footer');
+const hud = createHud(reducedMotion);
+const arena = createArena();
+const strip = createStatsStrip();
+const resultCard = createResultCard(() => {
+  if (!session.playAgain()) return;
+  setScreen(app, 'play');
+  window.scrollTo({ top: 0 });
+});
+footer.append(strip.el, resultCard.el);
+stage.append(hud.el, arena.el, footer);
+wireSelection(arena, { canPick: () => session.selectionLive, pick: (id) => session.pick(id) });
 
 app.append(
   createHeader(theme, sfx),
@@ -65,15 +70,33 @@ app.append(
   }),
 );
 
+const screenFor = (state: GameState): Screen => (state === 'IDLE' ? 'start' : state === 'RESULT' ? 'result' : 'play');
+
+// RESULT: fill the card, show it, move focus to Play Again, then bring the card into view if it
+// hangs below a short viewport (SPEC §4, §8).
+const showResult = () => {
+  const view = resultView(session);
+  if (!view) return;
+  resultCard.show(view);
+  setScreen(app, 'result');
+  resultCard.focus();
+  resultCard.el.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+};
+
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('debug') === '1') {
   setScreen(app, 'play');
   startDebug(arena);
 } else {
   setScreen(app, 'start');
+  let shownState: GameState = session.state;
   startLoop(1000 / config.physicsHz, config.maxFrameMs, {
     step: () => session.step(),
     render(alpha) {
-      setScreen(app, screenFor(session.state));
+      if (session.state !== shownState) {
+        shownState = session.state;
+        if (shownState === 'RESULT') showResult();
+        else setScreen(app, screenFor(shownState));
+      }
       hud.render(hudView(session));
       arena.render(arenaView(session, alpha));
       strip.update(session.stats);
