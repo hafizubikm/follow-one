@@ -1,5 +1,6 @@
 import type { NamePack } from './packs.ts';
 
+// The 24 letters in alphabet order, then archaic letters for the biggest games (SPEC §5).
 export const greek: NamePack = {
   id: 'greek',
   label: 'Greek letters',
@@ -19,5 +20,20 @@ export const greek: NamePack = {
     'Nu',
     'Xi',
     'Omicron',
+    'Pi',
+    'Rho',
+    'Sigma',
+    'Tau',
+    'Upsilon',
+    'Phi',
+    'Chi',
+    'Psi',
+    'Omega',
+    'Digamma',
+    'Koppa',
+    'Sampi',
+    'San',
+    'Sho',
+    'Yot',
   ],
 };

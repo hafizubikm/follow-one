@@ -1,4 +1,5 @@
-/* Page shell (SPEC §4): header, then a stage stacking HUD → arena → footer. */
+/* Page shell (SPEC §4): header, then a stage stacking HUD → arena → footer. The header spans the
+   whole width (⚙ at the left edge); the stage centers its column, sized by --arena-size and --panel-w. */
 #app {
   --gutter: 16px;
   --hud-h: 64px;
@@ -10,10 +11,8 @@
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
   width: 100%;
-  max-width: calc(var(--arena-max) + 2 * var(--gutter));
   height: 100vh;
   height: 100svh;
-  margin-inline: auto;
   padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
   padding-bottom: env(safe-area-inset-bottom);
 }

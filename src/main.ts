@@ -5,6 +5,8 @@ import './styles/header.css';
 import './styles/hud.css';
 import './styles/arena.css';
 import './styles/screens.css';
+import './styles/settings.css';
+import './styles/controls.css';
 import { createSfx } from './audio/sfx.ts';
 import { config } from './config.ts';
 import { startDebug } from './debug.ts';
@@ -18,6 +20,8 @@ import { el } from './render/dom.ts';
 import { createHeader } from './render/header.ts';
 import { createHud } from './render/hud.ts';
 import { createResultCard, createStartScreen, createStatsStrip, setScreen, type Screen } from './render/screens.ts';
+import { createSettingsPanel } from './render/settingsPanel.ts';
+import { createSettings, roundSetup, settingsLocked } from './settings/settings.ts';
 import { createTheme, systemDarkQuery } from './theme/theme.ts';
 import type { KeyValueStore } from './util/storage.ts';
 
@@ -32,6 +36,7 @@ function localStore(): KeyValueStore | null {
 const store = localStore();
 const theme = createTheme(store, window.matchMedia(systemDarkQuery), document.documentElement);
 const sfx = createSfx(store);
+const settings = createSettings(store);
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const reducedMotion = () => reducedMotionQuery.matches;
 
@@ -58,7 +63,12 @@ function playCue(event: GameEvent): void {
   }
 }
 
-const session = createSession({ strict: import.meta.env.DEV, reducedMotion, onEvent: playCue });
+const session = createSession({
+  strict: import.meta.env.DEV,
+  reducedMotion,
+  setup: () => roundSetup(settings.current),
+  onEvent: playCue,
+});
 
 // The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
 const stage = el('main', 'stage');
@@ -76,14 +86,21 @@ footer.append(strip.el, resultCard.el);
 stage.append(hud.el, arena.el, footer);
 wireSelection(arena, { canPick: () => session.selectionLive, pick: (id) => session.pick(id) });
 
-app.append(
-  createHeader(theme, sfx),
-  stage,
-  createStartScreen(() => {
-    sfx.unlock(); // inside the click: browsers only let a user gesture start audio
-    if (session.start()) setScreen(app, 'play');
-  }),
-);
+const startScreen = createStartScreen(() => {
+  sfx.unlock(); // inside the click: browsers only let a user gesture start audio
+  if (session.start()) setScreen(app, 'play');
+}, settings.current.ballCount);
+const header = createHeader(() => panel.open());
+const panel = createSettingsPanel({
+  settings,
+  theme,
+  sfx,
+  opener: header.settingsButton,
+  onChange: (current) => startScreen.setBallCount(current.ballCount),
+});
+
+app.append(header.el, stage, startScreen.el);
+document.body.append(panel.el);
 
 const screenFor = (state: GameState): Screen => (state === 'IDLE' ? 'start' : state === 'RESULT' ? 'result' : 'play');
 
@@ -109,6 +126,7 @@ if (import.meta.env.DEV && new URLSearchParams(location.search).get('debug') ===
     render(alpha) {
       if (session.state !== shownState) {
         shownState = session.state;
+        panel.setLocked(settingsLocked(shownState));
         if (shownState === 'RESULT') showResult();
         else setScreen(app, screenFor(shownState));
       }

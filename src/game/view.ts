@@ -47,6 +47,9 @@ export type InputMode = 'off' | 'live' | 'locked';
 export interface ArenaView {
   /** Indexed by ball id. */
   readonly balls: readonly BallView[];
+  /** The round's ball radius and ring radius, in arena units. */
+  readonly ballRadius: number;
+  readonly ringRadius: number;
   /** Ball ids in DOM order: slot order once slots exist, so tab order is slot order. */
   readonly order: readonly number[];
   /** Opacity of the ring's slot numbers. */
@@ -122,8 +125,9 @@ export function targetHighlight(state: GameState, elapsedMs: number, settings: C
 
 type Look = Pick<BallView, 'look' | 'strength' | 'glyph' | 'label'> & { labelDepth?: number };
 
-// A wrong pick this close to the target (in slots) would put the two names on top of each other.
-const NEIGHBOUR_SLOTS = 3;
+// A wrong pick within this share of the ring from the target (3 slots of 15) would put the two
+// names on top of each other.
+const NEIGHBOUR_ARC = 1 / 5;
 
 function lookOf(ball: Ball, s: SessionState, highlight: number): Look | null {
   const round = s.round;
@@ -138,8 +142,9 @@ function lookOf(ball: Ball, s: SessionState, highlight: number): Look | null {
     if (isTarget) return { look: 'revealed-target', strength: 1, glyph: copy.glyphs.target, label: ball.name };
     if (isPick) {
       const target = round.balls[round.targetId];
+      const count = round.balls.length;
       const gap = Math.abs((ball.slot ?? 0) - (target.slot ?? 0));
-      const near = Math.min(gap, round.balls.length - gap) <= NEIGHBOUR_SLOTS;
+      const near = Math.min(gap, count - gap) / count <= NEIGHBOUR_ARC;
       return { look: 'revealed-wrong-pick', strength: 1, glyph: copy.glyphs.wrong, label: ball.name, labelDepth: near ? 1 : 0 };
     }
   }
@@ -185,7 +190,14 @@ export function arenaView(
     .sort((a, b) => (slotted ? (a.slot ?? 0) - (b.slot ?? 0) : a.id - b.id))
     .map((ball) => ball.id);
 
-  return { balls, order, slotNumbers: slotNumberOpacity(s, settings), input };
+  return {
+    balls,
+    ballRadius: round.ballRadius,
+    ringRadius: round.ringRadius,
+    order,
+    slotNumbers: slotNumberOpacity(s, settings),
+    input,
+  };
 }
 
 /** The result card (SPEC §3), from REVEAL on. */

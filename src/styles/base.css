@@ -42,6 +42,17 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* render/dom.ts lineIcon(): decorative strokes in the text color. */
+.line-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* Emoji beside text (render/dom.ts icon()): the gap is margin, not a text space. */
 .icon {
   display: inline-block;

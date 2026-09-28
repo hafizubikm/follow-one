@@ -231,9 +231,9 @@ describe('ring, input and reveal views', () => {
 });
 
 describe('names on the ring', () => {
-  /** A finished round whose target sits in slot 1 and whose wrong pick sits in `pickSlot`. */
-  const revealWithPickIn = (pickSlot: number) => {
-    const driven = started();
+  /** A finished round of `count` balls whose target sits in slot 1 and whose wrong pick sits in `pickSlot`. */
+  const revealWithPickIn = (pickSlot: number, count: number = config.ballCount) => {
+    const driven = started(config, () => ({ ballCount: count, speedFactor: 1 }));
     const { session } = driven;
     toLiveSelection(driven);
     const round = session.round!;
@@ -265,6 +265,26 @@ describe('names on the ring', () => {
     }
     for (const slot of [5, 8, 12]) {
       expect(revealWithPickIn(slot).pick.labelDepth, `pick in slot ${slot}`).toBe(0);
+    }
+  });
+
+  it('counts "neighbouring" as the same share of the ring at any ball count', () => {
+    // 3 slots of 15 is a fifth of the ring: 6 slots of 30, 2 of 10.
+    for (const slot of [2, 7, 25, 30]) expect(revealWithPickIn(slot, 30).pick.labelDepth, `30 balls, slot ${slot}`).toBe(1);
+    for (const slot of [8, 16, 24]) expect(revealWithPickIn(slot, 30).pick.labelDepth, `30 balls, slot ${slot}`).toBe(0);
+    for (const slot of [2, 3, 9, 10]) expect(revealWithPickIn(slot, 10).pick.labelDepth, `10 balls, slot ${slot}`).toBe(1);
+    for (const slot of [4, 8]) expect(revealWithPickIn(slot, 10).pick.labelDepth, `10 balls, slot ${slot}`).toBe(0);
+  });
+});
+
+describe('ball size and ring in the view', () => {
+  it('passes the round’s ball radius and ring radius to the renderer', () => {
+    for (const ballCount of [config.ballCountMin, config.ballCount, config.ballCountMax]) {
+      const { session } = started(config, () => ({ ballCount, speedFactor: 1 }));
+      const view = arenaView(session, 0)!;
+      expect(view.balls).toHaveLength(ballCount);
+      expect(view.ballRadius).toBe(session.round!.ballRadius);
+      expect(view.ringRadius).toBe(session.round!.ringRadius);
     }
   });
 });

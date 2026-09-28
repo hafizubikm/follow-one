@@ -266,3 +266,51 @@ Code
 - 60 fps and sound were verified in headless Chrome (timing and scheduling), not on a physical phone or by ear.
 - SPEC §9's optional best-streak persistence is not implemented (see phase 5).
 - Landscape phones: small arena by design (215 px at 812×375); neighbouring hit areas overlap slightly and resolve to the nearest ball.
+
+## 2026-09-29 — Spec v1.1 and Phase 8: Settings drawer, ball count and speed
+
+### Spec edits (v1.1, before any code)
+- The additions requested today (settings drawer, ball count, speed, ball/target colors, arena countdown, hidden cursor, Play typeface) are specified across §0–§16 and split into phases 8–11 in §13. New §16 Settings; §14 gains Settings and "Arena countdown, cursor, typography" items.
+- Decisions made while specifying:
+  - Names for 25–30 balls: the pack now lists all 24 Greek letters, then six archaic ones (Digamma, Koppa, Sampi, San, Sho, Yot). A round uses the first n names, shuffled (`shuffle(names.slice(0, n))`), so a 15-ball game still uses Alpha–Omicron.
+  - Ball radius `max(ballRadiusMin, ballRadius × √(15 / n))`: 0.09 at 15 as before, same arena coverage (~12%) at every count, 0.065 floor. The ring keeps the balls' outer edge where it was (`slotRadius + ballRadius − r`).
+  - Speed presets multiply `baseSpeed`. Faster presets run `⌈factor⌉` substeps per step: with 3 collision passes, 30 balls at Extreme exceeded the 1e-3 overlap limit (1.02e-3 once in 720k steps); with substeps every combination stays ≤ 6.1e-4.
+  - The arena countdown takes 3·2·1 and GO! (strong), then the seconds (faint); the HUD keeps the intro line through the countdown and drops the timer (phase 10).
+  - Settings are disabled from TARGET_INTRO through REVEAL with a note; opening Settings doesn't pause the round.
+- CLAUDE.md: the Play font is the one allowed web font; `settings/` is pure; the settings lock is a hard rule.
+- §11 new keys: `ballCountMin: 10`, `ballCountMax: 30`, `ballRadiusMin: 0.065`, `speedPresets`, `speedPreset: 'normal'`, `storageKeys.settings`. No existing default changed: 15 balls at Normal play exactly as before (same radius, ring, speed, no substeps).
+
+### Done
+- `settings/settings.ts` (pure): defaults, per-field validation (count rounded and clamped to 10–30, unknown presets → Normal), JSON persistence under `followone.settings` through the storage wrappers, `roundSetup`, `settingsLocked`.
+- `game/round.ts`: `ballRadiusFor`, `RoundSetup` (count + speed factor), rounds carry `ballRadius`, `ringRadius`, `speedFactor`; `roundPhysics` gives the round's speed and substeps. `physics/world.ts` takes an optional `substeps`.
+- Session reads the setup once as each round is built; physics and the glide use the round's values.
+- Arena renderer builds one element set per ball count (fresh, identical elements when the count changes at round start) and takes `--ball-r` and the ring from the view. The "neighbouring wrong pick" name stepping is now a fifth of the ring (3 of 15, 6 of 30).
+- Header: ⚙ at the left edge (header now spans the full width), title centered. Theme and sound moved into the drawer.
+- Drawer (`render/settingsPanel.ts`, `render/controls.ts`, `styles/settings.css`, `styles/controls.css`): modal `<dialog>` sliding from the left, Game (Balls slider with "n balls" and 10/30 ends, Speed segmented radios) and Appearance (Theme segmented radios, Sound switch). ✕, Esc and a backdrop press close it (a slider drag that ends on the backdrop doesn't); focus returns to ⚙. 360 px wide, `100vw − 40px` on phones, full width below 360 px, scrolls on short screens.
+- Start meta line follows the ball count. Debug free-run: ball-count slider, radius-at-15 slider, substeps like the presets.
+- Tests (177, was 144): settings parsing/validation/persistence/locking; radius per count and the sizes §5 quotes; rounds of every count (ids, radius, ring, names from the start of the pack); spawn bounds at 10 and 30; spawn speed per preset; `roundPhysics`; target and name uniformity at 30 balls; ring gap and outer edge for every count; slot numbering at 10 and 30; §6 invariants at 10 and 30 balls × Slow and Extreme (shared checker with the default test, limits unchanged); substeps = two half steps with summed collisions; session reads the setup only at round start, runs at the round speed, glides 30 balls onto their ring; view radii; name stepping at 10 and 30; copy rows for the drawer.
+
+### Verified in the browser (headless Chrome over the DevTools protocol; the Browser pane was hidden)
+- Drawer at 1280×800, keyboard and pointer: Tab order ⚙ → Start Game; Enter opens it with focus on ✕; Tab cycles ✕ → Balls → Speed → Theme → Sound inside it; End/← on the slider (value, "30 balls", meta line, storage); click and ←/→ on Speed; Theme Dark applies at once; the Sound label and switch both toggle (aria-checked, "On/Off", `followone.sound`). Esc, ✕ and the backdrop close it; focus back on ⚙. Reload restores 30 balls, Extreme, Dark, sound off. Accessibility tree: modal dialog "Settings", slider "Balls" 10–30, radio groups "Speed" and "Theme", switch "Sound".
+- Sizes 1280×800, 375×812, 360×740, 320×568, 812×375, light and dark: no horizontal overflow with the drawer open or closed, no clipped segment labels, arena sizes unchanged from phase 7 (588/343/328/288/215 px). Drawer slides in (−360 → 0 px); reduced motion shows it at once.
+- Full rounds at 1280×800, 390×844, 375×812 and 812×375, 30 balls at Extreme then 10 at Slow (changed in RESULT, applied from Play Again; the arena kept its 30 balls until then):
+  - 30 balls: r 0.065 (38 px on 588, 22 px on 343, 14 px on 215), hit areas 44 px, measured speed 0.63–0.69 u/s (Extreme 0.72, sampled over 150 ms); ring at exactly 0.875, labels Ball 1…30, slot numbers on screen; tapping slot 5's center picked #5 everywhere, including 812×375 where neighbours are ~20 px apart.
+  - 10 balls: r 0.110 (65 px on 588), ring 0.830, speed 0.27–0.30 u/s (Slow 0.315).
+  - Drawer mid-round (intro and tracking): note shown, Balls and Speed disabled (End on the slider changes nothing), Theme and Sound work. In RESULT: unlocked.
+  - DOM fairness at 30 and 10 balls: after the fade and in selection every ball's markup is identical (minus transform and slot name), no look attributes.
+- Performance: 30 balls at Extreme at 390×844 — 60 fps, frame p95 16.7 ms unthrottled and 16.8 ms at 4× CPU throttle.
+- Production build: one deferred classic script, no `crossorigin`, debug code excluded. From `http://127.0.0.1:4174/dist/` and from `file://`: stored settings restored (22 balls, Fast) and the round built with 22 balls. No console errors in any run.
+
+### SPEC §14 items touched
+- Verified: ⚙ opens the drawer; ✕/Esc/backdrop close it; focus returns; no horizontal scroll on phones. Balls, Speed, Theme and Sound work with pointer and keyboard. Those four persist across reloads with first-visit defaults 15 · Normal · System · On. Ball count and speed are locked with the note from TARGET_INTRO through REVEAL (unit test for every state, browser in intro and tracking) and apply from the next round. Balls resize with the count; every count spawns, rings without overlaps, numbers 1..n, unique names (tests for all 21 counts, browser at 10 and 30). No escape/stick/stall/runaway at 10 and 30 × Slow and Extreme. ~60 fps with 30 balls (headless, 4× throttle). Target indistinguishable after the fade at 10 and 30 balls. No horizontal scroll; ≥ 44 px hit areas; keyboard-only drawer use with visible focus; reduced motion removes the slide. All tests pass.
+- Not yet (later phases): Ball color, Target color and the color hint (phase 9); the arena countdown, the hidden cursor and Play (phase 10). The "six settings persist" item has four of six until phase 9.
+
+### Deferred
+- Phase 9: ball and target colors. Phase 10: arena countdown, cursor, typography. Phase 11: v1.1 acceptance.
+- §0 lists `render/countdown.ts` (phase 10) and `theme/palette.ts` (phase 9), not written yet.
+
+### Known issues / notes
+- Headless Chrome only: a CDP `Escape` key press, and `Enter` sent as rawKeyDown + char, mark the page `hidden`, which stops rAF (the game pauses, correctly). Enter sent as `keyDown` with text works. Esc closing the drawer was verified on its own; the round runs close it with ✕.
+- Chrome's accessibility tree reports the Balls slider's value text as "15", not the `aria-valuetext` "15 balls"; a plain `<input type=range>` does the same, so it's Chrome's mapping. The label "Balls" plus the value still reads clearly.
+- In RESULT on short viewports the page scrolls to the card, so ⚙ (in the header) scrolls out of view until the player scrolls up; it is never fixed over the arena.
+- Collision clicks still exist and stay off by default (`collisionClicks: false`), as before.

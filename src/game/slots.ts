@@ -1,6 +1,12 @@
+import type { Config } from '../config.ts';
 import type { Vec } from '../physics/vec.ts';
 
 const TAU = 2 * Math.PI;
+
+/** The ring for balls of this radius: their outer edge stays where it is at the default count (SPEC §7). */
+export function ringRadiusFor(ballRadius: number, settings: Pick<Config, 'slotRadius' | 'ballRadius'>): number {
+  return settings.slotRadius + settings.ballRadius - ballRadius;
+}
 
 /** Slot k's angle, clockwise from 12 o'clock (SPEC §7). */
 export function slotAngle(slot: number, count: number): number {

@@ -1,6 +1,6 @@
 import { greek } from './greek.ts';
 
-/** A themed set of ball names. Needs at least `config.ballCount` unique names. */
+/** A themed set of ball names: at least `config.ballCountMax` unique names, most familiar first. */
 export interface NamePack {
   readonly id: string;
   readonly label: string;

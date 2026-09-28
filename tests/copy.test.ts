@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import spec from '../docs/SPEC.md?raw';
+import { config } from '../src/config.ts';
 import { copy, countdownNumerals, fill, textRuns } from '../src/copy.ts';
 
 // SPEC §3 says "use this copy exactly", so copy.ts is checked against the table itself.
@@ -39,7 +40,7 @@ describe('copy matches SPEC §3', () => {
 
   it('HUD', () => {
     expect(copy.hud.intro).toBe(row('Intro (HUD)'));
-    expect([...countdownNumerals, copy.hud.go].join(' · ')).toBe(row('Countdown (HUD)'));
+    expect([...countdownNumerals, copy.hud.go].join(' · ')).toBe(row('Countdown (arena)'));
     expect(copy.hud.tracking).toBe(row('Tracking (HUD)'));
     expect(copy.hud.finalWarning).toBe(row('Last 5 s (HUD)'));
     expect(copy.hud.freeze).toBe(row('Freeze (HUD)'));
@@ -61,10 +62,21 @@ describe('copy matches SPEC §3', () => {
     expect(spec).toContain(`<button aria-label="${copy.ball}">`);
   });
 
-  it('header controls', () => {
-    const { on, off } = copy.sound;
-    expect(`${on.icon} ${on.label} / ${off.icon} ${off.label}`).toBe(row('Sound toggle'));
-    expect(Object.values(copy.theme.options).join(' · ')).toBe(row('Theme control'));
+  it('settings drawer', () => {
+    const s = copy.settings;
+    const control = (label: string, values: Readonly<Record<string, string>>) => [label, ...Object.values(values)].join(' · ');
+    expect(s.title).toBe(row('Settings button and title'));
+    expect(s.close).toBe(row('Settings close'));
+    expect(Object.values(s.sections).join(' · ')).toBe(row('Settings sections'));
+    expect(`${s.balls.label} · ${s.balls.value}`).toBe(row('Balls setting'));
+    expect(control(s.speed.label, s.speed.options)).toBe(row('Speed setting'));
+    expect(control(s.theme.label, s.theme.options)).toBe(row('Theme setting'));
+    expect(`${s.sound.label} · ${s.sound.on} · ${s.sound.off}`).toBe(row('Sound setting'));
+    expect(s.locked).toBe(row('Settings locked'));
+  });
+
+  it('names every speed preset in config, in order', () => {
+    expect(Object.keys(copy.settings.speed.options)).toEqual(Object.keys(config.speedPresets));
   });
 
   it('stat labels', () => {

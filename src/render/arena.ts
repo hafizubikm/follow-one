@@ -22,9 +22,8 @@ interface BallElement {
 const SLOT_NUMBER_GAP_PX = 10;
 
 // Only this module turns arena units into pixels; everything upstream stays resolution-free (SPEC §4).
-export function createArena(count: number = config.ballCount): Arena {
+export function createArena(): Arena {
   const arena = el('div', 'arena');
-  arena.style.setProperty('--ball-r', String(config.ballRadius));
   arena.style.setProperty('--hit-min', `${config.minHitPx}px`);
   // Balls are buttons from the start (SPEC §5) but stay out of reach until selection.
   arena.inert = true;
@@ -32,14 +31,13 @@ export function createArena(count: number = config.ballCount): Arena {
 
   const numbers = el('div', 'slot-numbers');
   numbers.setAttribute('aria-hidden', 'true');
-  const numberEls = Array.from({ length: count }, (_, i) => numbers.appendChild(el('span', 'slot-number', String(i + 1))));
-
   const layer = el('div', 'balls');
   layer.hidden = true;
-  const balls = Array.from({ length: count }, createBall);
-  const ids = new WeakMap<Element, number>(balls.map((ball, id) => [ball.el, id]));
-  layer.append(...balls.map((ball) => ball.el));
   arena.append(numbers, layer);
+
+  let balls: BallElement[] = [];
+  let numberEls: HTMLElement[] = [];
+  let ids = new WeakMap<Element, number>();
 
   // Resizing or rotating mid-round just changes this scale; the next frame redraws at the new size.
   let radiusPx = 0;
@@ -49,14 +47,14 @@ export function createArena(count: number = config.ballCount): Arena {
 
   let order = '';
   let input: InputMode = 'off';
-  let numbersRadius = 0;
+  let ballRadius = 0;
+  let numbersAt = '';
   let numbersOpacity = '';
 
-  const placeNumbers = () => {
-    numbersRadius = radiusPx;
-    const along = radiusPx * (config.slotRadius + config.ballRadius) + SLOT_NUMBER_GAP_PX;
+  const placeNumbers = (ringRadius: number) => {
+    const along = radiusPx * (ringRadius + ballRadius) + SLOT_NUMBER_GAP_PX;
     numberEls.forEach((number, i) => {
-      const dir = slotPosition(i + 1, count, 1);
+      const dir = slotPosition(i + 1, numberEls.length, 1);
       number.style.transform = `translate(-50%, -50%) translate(${(dir.x * along).toFixed(1)}px, ${(dir.y * along).toFixed(1)}px)`;
     });
   };
@@ -72,6 +70,18 @@ export function createArena(count: number = config.ballCount): Arena {
     }
   };
 
+  // A round with another ball count gets a fresh set of identical elements, before any of it is shown.
+  const setCount = (count: number) => {
+    balls = Array.from({ length: count }, createBall);
+    ids = new WeakMap(balls.map((ball, id) => [ball.el, id]));
+    layer.replaceChildren(...balls.map((ball) => ball.el));
+    numberEls = Array.from({ length: count }, (_, i) => el('span', 'slot-number', String(i + 1)));
+    numbers.replaceChildren(...numberEls);
+    order = '';
+    numbersAt = '';
+    setInput(input);
+  };
+
   return {
     el: arena,
     render(view) {
@@ -84,7 +94,18 @@ export function createArena(count: number = config.ballCount): Arena {
       }
       if (!view) return;
 
-      if (view.slotNumbers > 0 && numbersRadius !== radiusPx) placeNumbers();
+      if (view.balls.length !== balls.length) setCount(view.balls.length);
+      if (view.ballRadius !== ballRadius) {
+        ballRadius = view.ballRadius;
+        arena.style.setProperty('--ball-r', String(ballRadius));
+      }
+      if (view.slotNumbers > 0) {
+        const at = `${radiusPx}|${view.ringRadius}|${ballRadius}|${numberEls.length}`;
+        if (at !== numbersAt) {
+          numbersAt = at;
+          placeNumbers(view.ringRadius);
+        }
+      }
       const nextOrder = view.order.join();
       if (nextOrder !== order) {
         order = nextOrder;

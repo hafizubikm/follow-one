@@ -1,7 +1,7 @@
 import { config, type Config } from '../config.ts';
 import type { Vec } from '../physics/vec.ts';
-import { stepWorld } from '../physics/world.ts';
-import { createRound, type Round } from './round.ts';
+import { stepWorld, type PhysicsParams } from '../physics/world.ts';
+import { createRound, defaultSetup, roundPhysics, type Round, type RoundSetup } from './round.ts';
 import { createStats, recordAnswer, startRound, type Stats } from './score.ts';
 import { assignSlots, glidePoint, slotPosition } from './slots.ts';
 import { createStateMachine, phaseDurationMs, type GameState } from './stateMachine.ts';
@@ -19,6 +19,8 @@ export interface SessionOptions {
   readonly strict: boolean;
   /** Read when a state that depends on it begins (SPEC §10). */
   reducedMotion(): boolean;
+  /** The player's ball count and speed, read once as each round is built (SPEC §2.6); defaults if absent. */
+  setup?(): RoundSetup;
   onEvent(event: GameEvent): void;
 }
 
@@ -50,6 +52,7 @@ export function createSession(options: SessionOptions, settings: Config = config
   const dt = 1 / settings.physicsHz;
   const emit = options.onEvent;
   let round: Round | null = null;
+  let physics: PhysicsParams = roundPhysics(defaultSetup, settings);
   let stats = createStats();
   let pickedId: number | null = null;
   let prevX = new Float64Array(0);
@@ -66,7 +69,8 @@ export function createSession(options: SessionOptions, settings: Config = config
 
   const onEnter = (state: GameState) => {
     if (state === 'TARGET_INTRO') {
-      round = createRound(settings);
+      round = createRound(options.setup?.() ?? defaultSetup, settings);
+      physics = roundPhysics(round, settings);
       stats = startRound(stats);
       pickedId = null;
       prevX = new Float64Array(round.balls.length);
@@ -74,13 +78,13 @@ export function createSession(options: SessionOptions, settings: Config = config
       rememberPositions();
     } else if (state === 'RETURNING' && round) {
       // Slots come from where the balls froze, nothing else (SPEC §7).
-      const balls = round.balls;
+      const { balls, ringRadius } = round;
       const slots = assignSlots(balls);
       balls.forEach((ball, i) => {
         ball.slot = slots[i];
       });
       glideFrom = balls.map(({ x, y }) => ({ x, y }));
-      glideTo = balls.map((_, i) => slotPosition(slots[i], balls.length, settings.slotRadius));
+      glideTo = balls.map((_, i) => slotPosition(slots[i], balls.length, ringRadius));
     }
     emit({ type: 'enter', state });
     if (state === 'COUNTDOWN') emit({ type: 'countdown', value: settings.countdownFrom });
@@ -172,7 +176,7 @@ export function createSession(options: SessionOptions, settings: Config = config
       rememberPositions();
       const state = machine.state;
       const before = machine.elapsedMs;
-      if (state === 'TRACKING' && round && stepWorld(round.balls, dt, settings) > 0) emit({ type: 'collision' });
+      if (state === 'TRACKING' && round && stepWorld(round.balls, dt, physics) > 0) emit({ type: 'collision' });
       machine.tick();
       if (machine.state === state) cuesBetween(state, before, machine.elapsedMs);
       if (machine.state === 'RETURNING' && machine.durationMs) placeGliding(machine.elapsedMs / machine.durationMs);

@@ -1,8 +1,9 @@
-// Dev-only free-run (?debug=1, SPEC §13): balls bounce forever so speed and radius can be tuned by eye.
+// Dev-only free-run (?debug=1, SPEC §13): balls bounce forever so count, speed and radius can be tuned by eye.
 // main.ts only calls this behind import.meta.env.DEV, so production builds drop the module.
 // Its text is for the developer, not the player, so it stays out of copy.ts.
 import { config } from './config.ts';
-import { spawnBodies } from './game/round.ts';
+import { ballRadiusFor, spawnBodies } from './game/round.ts';
+import { ringRadiusFor } from './game/slots.ts';
 import { neutralBall } from './game/view.ts';
 import { startLoop } from './loop.ts';
 import { stepWorld, type Body } from './physics/world.ts';
@@ -27,14 +28,17 @@ const panelStyle = [
 ].join(';');
 
 export function startDebug(arena: Arena): void {
-  const settings = { ...config, baseSpeed: config.baseSpeed as number, ballRadius: config.ballRadius as number };
+  // ballRadius is the size at the default count; the count slider applies the §5 scaling to it.
+  const tuning = { ...config, baseSpeed: config.baseSpeed as number, ballRadius: config.ballRadius as number };
+  let count: number = config.ballCount;
+  let radius = 0;
   let bodies: Body[] = [];
   let prev: Vec[] = [];
 
   const respawn = () => {
-    bodies = spawnBodies(settings);
+    radius = ballRadiusFor(count, tuning);
+    bodies = spawnBodies({ ...tuning, ballCount: count, ballRadius: radius });
     prev = bodies.map(({ x, y }) => ({ x, y }));
-    arena.el.style.setProperty('--ball-r', String(settings.ballRadius));
   };
 
   const readout = el('output');
@@ -42,11 +46,15 @@ export function startDebug(arena: Arena): void {
   panel.style.cssText = panelStyle;
   panel.append(
     el('strong', '', 'free-run (?debug=1)'),
-    slider('baseSpeed', 0.1, 1.2, 0.01, settings.baseSpeed, (v) => {
-      settings.baseSpeed = v; // regulation eases every ball to the new speed
+    slider('balls', config.ballCountMin, config.ballCountMax, 1, count, (v) => {
+      count = v;
+      respawn();
     }),
-    slider('ballRadius', 0.04, 0.14, 0.005, settings.ballRadius, (v) => {
-      settings.ballRadius = v;
+    slider('baseSpeed', 0.1, 1.2, 0.01, tuning.baseSpeed, (v) => {
+      tuning.baseSpeed = v; // regulation eases every ball to the new speed
+    }),
+    slider('radius@15', 0.04, 0.14, 0.005, tuning.ballRadius, (v) => {
+      tuning.ballRadius = v;
       respawn();
     }),
     button('respawn', respawn),
@@ -62,11 +70,14 @@ export function startDebug(arena: Arena): void {
   startLoop(stepMs, config.maxFrameMs, {
     step() {
       prev = bodies.map(({ x, y }) => ({ x, y }));
-      stepWorld(bodies, stepMs / 1000, settings);
+      // Substeps as a speed preset with this factor would get (SPEC §6).
+      stepWorld(bodies, stepMs / 1000, { ...tuning, substeps: Math.ceil(tuning.baseSpeed / config.baseSpeed) });
     },
     render(alpha) {
       arena.render({
         balls: bodies.map((b, i) => neutralBall(prev[i].x + (b.x - prev[i].x) * alpha, prev[i].y + (b.y - prev[i].y) * alpha)),
+        ballRadius: radius,
+        ringRadius: ringRadiusFor(radius, config),
         order: bodies.map((_, i) => i),
         slotNumbers: 0,
         input: 'off',
@@ -78,7 +89,7 @@ export function startDebug(arena: Arena): void {
       const speeds = bodies.map((b) => Math.hypot(b.vx, b.vy));
       const mean = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
       readout.textContent =
-        `${Math.round((frames * 1000) / (now - windowStart))} fps · speed ` +
+        `${Math.round((frames * 1000) / (now - windowStart))} fps · r ${radius.toFixed(3)} · speed ` +
         `${Math.min(...speeds).toFixed(3)} / ${mean.toFixed(3)} / ${Math.max(...speeds).toFixed(3)}`;
       frames = 0;
       windowStart = now;

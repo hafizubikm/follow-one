@@ -1,4 +1,5 @@
-import { copy } from '../copy.ts';
+import { config } from '../config.ts';
+import { copy, fill } from '../copy.ts';
 import type { ResultView } from '../game/view.ts';
 import { el, icon } from './dom.ts';
 
@@ -9,7 +10,13 @@ export function setScreen(root: HTMLElement, screen: Screen): void {
   if (root.dataset.screen !== screen) root.dataset.screen = screen;
 }
 
-export function createStartScreen(onStart: () => void): HTMLElement {
+export interface StartScreen {
+  readonly el: HTMLElement;
+  /** The meta line follows the ball-count setting. */
+  setBallCount(n: number): void;
+}
+
+export function createStartScreen(onStart: () => void, ballCount: number): StartScreen {
   const screen = el('section', 'start-screen');
   const slot = el('div', 'start-slot');
   const card = el('div', 'start-card');
@@ -18,16 +25,22 @@ export function createStartScreen(onStart: () => void): HTMLElement {
   button.type = 'button';
   button.addEventListener('click', onStart);
 
+  const meta = el('p', 'start-meta');
+  const setBallCount = (n: number) => {
+    meta.textContent = fill(copy.start.meta, { n, seconds: config.trackingMs / 1000 });
+  };
+  setBallCount(ballCount);
+
   card.append(
     el('h1', 'start-title', copy.title),
     el('p', 'start-tagline', copy.start.tagline),
-    el('p', 'start-meta', copy.start.meta),
+    meta,
     button,
     el('p', 'start-help', copy.start.help),
   );
   slot.append(card);
   screen.append(slot);
-  return screen;
+  return { el: screen, setBallCount };
 }
 
 export interface StripStats {

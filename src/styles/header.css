@@ -1,15 +1,38 @@
+/* ⚙ at the left, the title centered over the arena; the third column balances the first. */
 .header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-  padding-block: max(10px, env(safe-area-inset-top)) 10px;
+  gap: 8px;
+  padding-block: max(8px, env(safe-area-inset-top)) 8px;
+}
+
+.settings-button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--muted);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.settings-button:hover {
+  background: var(--control);
+  color: var(--text);
+}
+
+.settings-button .line-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
+  justify-self: center;
   gap: 10px;
   font-size: 1.0625rem;
   font-weight: 750;
@@ -26,91 +49,14 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--target) 22%, transparent);
 }
 
-.header-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-inline-start: auto;
-}
-
-.sound-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 40px;
-  padding-inline: 12px;
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.875rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.sound-toggle:hover {
-  background: var(--control);
-  color: var(--text);
-}
-
-.segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--control);
-}
-
-.segmented button {
-  height: 34px;
-  padding-inline: 12px;
-  border-radius: 999px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.segmented button:hover {
-  color: var(--text);
-}
-
-.segmented button[aria-pressed='true'] {
-  background: var(--surface);
-  color: var(--text);
-  box-shadow:
-    0 0 0 1px var(--border),
-    0 1px 3px rgb(var(--shadow) / 0.12);
-}
-
-/* Fits brand + controls on one row down to 360px wide; narrower screens wrap. */
-@media (max-width: 480px) {
-  .header {
-    column-gap: 8px;
-  }
-
-  .brand {
-    gap: 8px;
-  }
-
-  .sound-toggle {
-    padding-inline: 10px;
-  }
-
-  /* Icon only; the label stays in the accessible name. */
-  .sound-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .segmented button {
-    padding-inline: 8px;
-  }
-}
-
 @media (max-height: 520px) {
   .header {
-    padding-block: max(6px, env(safe-area-inset-top)) 6px;
+    padding-block: max(4px, env(safe-area-inset-top)) 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-button {
+    transition: none;
   }
 }

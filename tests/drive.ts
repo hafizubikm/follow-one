@@ -1,4 +1,5 @@
 import { config, type Config } from '../src/config.ts';
+import type { RoundSetup } from '../src/game/round.ts';
 import { createSession, type GameEvent, type Session } from '../src/game/session.ts';
 import type { GameState } from '../src/game/stateMachine.ts';
 
@@ -15,13 +16,13 @@ export interface Driven {
   setReducedMotion(on: boolean): void;
 }
 
-/** A session in strict mode with Start Game already pressed. */
-export function started(settings: Config = config): Driven {
+/** A session in strict mode with Start Game already pressed; `setup` gives each round's ball count and speed. */
+export function started(settings: Config = config, setup?: () => RoundSetup): Driven {
   const events: Driven['events'] = [];
   let clock = 0;
   let reduced = false;
   const session = createSession(
-    { strict: true, reducedMotion: () => reduced, onEvent: (event) => events.push({ at: clock, event }) },
+    { strict: true, reducedMotion: () => reduced, setup, onEvent: (event) => events.push({ at: clock, event }) },
     settings,
   );
   const run = (n: number) => {

@@ -14,14 +14,24 @@ export interface PhysicsParams {
   readonly speedBand: readonly [number, number];
   readonly speedRestore: number;
   readonly collisionPasses: number;
+  /** Equal substeps per step, so faster speeds move no further per substep (SPEC §6); 1 if absent. */
+  readonly substeps?: number;
 }
 
 // Below these, a distance or speed has no usable direction.
 const COINCIDENT = 1e-9;
 const STOPPED = 1e-9;
 
-/** Advances every body by dt seconds (SPEC §6 step order); returns how many collisions happened. */
+/** Advances every body by dt seconds, in `params.substeps` equal substeps; returns how many collisions happened. */
 export function stepWorld(bodies: Body[], dt: number, params: PhysicsParams, random: () => number = Math.random): number {
+  const substeps = params.substeps ?? 1;
+  let collisions = 0;
+  for (let i = 0; i < substeps; i++) collisions += substep(bodies, dt / substeps, params, random);
+  return collisions;
+}
+
+/** One substep in the SPEC §6 step order. */
+function substep(bodies: Body[], dt: number, params: PhysicsParams, random: () => number): number {
   for (const b of bodies) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;

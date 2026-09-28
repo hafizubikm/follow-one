@@ -1,0 +1,155 @@
+/* ---------- the settings drawer (SPEC §16): a modal dialog sliding in from the left ---------- */
+
+.settings {
+  --pad: 20px;
+
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(360px, 100vw - 40px);
+  max-width: 100vw;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: max(var(--pad), env(safe-area-inset-top)) var(--pad) max(var(--pad), env(safe-area-inset-bottom))
+    max(var(--pad), env(safe-area-inset-left));
+  border: 0;
+  border-radius: 0 24px 24px 0;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 0 0 1px var(--border),
+    16px 0 48px rgb(var(--shadow) / 0.2);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Closed, it rests off-screen to the left, so it slides both ways where discrete transitions exist. */
+  transform: translateX(-100%);
+  transition:
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+
+.settings[open] {
+  transform: none;
+}
+
+@starting-style {
+  .settings[open] {
+    transform: translateX(-100%);
+  }
+}
+
+/* The game stays visible behind a light dimming. */
+.settings::backdrop {
+  background: rgb(15 20 30 / 0.3);
+  transition:
+    background-color 240ms ease,
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+
+[data-theme='dark'] .settings::backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+
+@starting-style {
+  .settings[open]::backdrop {
+    background: transparent;
+  }
+}
+
+:root:has(.settings[open]) {
+  overflow: hidden;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-title {
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.settings-close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-inline-end: -10px;
+  border-radius: 50%;
+  color: var(--muted);
+}
+
+.settings-close:hover {
+  background: var(--control);
+  color: var(--text);
+}
+
+.settings-note {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--control);
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.settings-section {
+  display: grid;
+  gap: 20px;
+  padding-top: 22px;
+}
+
+/* A small caps heading trailed by a hairline rule. */
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- small screens ---------- */
+
+/* Below 360px the drawer takes the full width, so four speed options still fit on one row. */
+@media (max-width: 359px) {
+  .settings {
+    --pad: 16px;
+
+    width: 100vw;
+    border-radius: 0;
+  }
+}
+
+@media (max-height: 520px) {
+  .settings {
+    --pad: 14px;
+  }
+
+  .settings-section {
+    gap: 14px;
+    padding-top: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings,
+  .settings::backdrop {
+    transition: none;
+  }
+}

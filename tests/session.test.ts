@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
+import type { RoundSetup } from '../src/game/round.ts';
 import { createSession, type Session } from '../src/game/session.ts';
 import { assignSlots, slotPosition } from '../src/game/slots.ts';
 import { started, steps, toLiveSelection, wrongId } from './drive.ts';
@@ -148,6 +149,57 @@ describe('session: the ring (SPEC §7)', () => {
       glideSteps++;
     }
     expect(glideSteps).toBe(steps(config.returnMsReducedMotion));
+  });
+});
+
+describe('session: settings per round (SPEC §2.6, §16)', () => {
+  it('builds each round from the setup read as it starts, and keeps it to the end', () => {
+    let setup: RoundSetup = { ballCount: 12, speedFactor: 1 };
+    const driven = started(config, () => setup);
+    const { session } = driven;
+    const first = session.round!;
+    expect(first.balls).toHaveLength(12);
+
+    setup = { ballCount: 30, speedFactor: 1.6 }; // changed mid-round
+    toLiveSelection(driven);
+    expect(session.round).toBe(first);
+    expect(first.balls).toHaveLength(12);
+    expect(first.speedFactor).toBe(1);
+    session.pick(first.targetId);
+    driven.runUntil('RESULT');
+
+    session.playAgain();
+    expect(session.round!.balls).toHaveLength(30);
+    expect(session.round!.speedFactor).toBe(1.6);
+  });
+
+  it('runs the balls at the round speed', () => {
+    for (const speedFactor of [config.speedPresets.slow, config.speedPresets.extreme]) {
+      const driven = started(config, () => ({ ballCount: 20, speedFactor }));
+      driven.runUntil('TRACKING');
+      const speed = speedFactor * config.baseSpeed;
+      let total = 0;
+      let samples = 0;
+      for (let i = 0; i < 600; i++) {
+        driven.run(1);
+        for (const ball of driven.session.round!.balls) {
+          const v = Math.hypot(ball.vx, ball.vy);
+          expect(v).toBeGreaterThanOrEqual(config.speedBand[0] * speed - 1e-9);
+          expect(v).toBeLessThanOrEqual(config.speedBand[1] * speed + 1e-9);
+          total += v;
+          samples++;
+        }
+      }
+      expect(total / samples / speed).toBeCloseTo(1, 1);
+    }
+  });
+
+  it('glides a 30-ball round onto its own ring', () => {
+    const driven = started(config, () => ({ ballCount: 30, speedFactor: 1 }));
+    driven.runUntil('SELECTION');
+    const round = driven.session.round!;
+    expect(round.ringRadius).toBeCloseTo(config.slotRadius + config.ballRadius - round.ballRadius, 12);
+    for (const ball of round.balls) expect(ball).toMatchObject(slotPosition(ball.slot!, 30, round.ringRadius));
   });
 });
 

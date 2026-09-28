@@ -5,7 +5,8 @@ export const copy = {
 
   start: {
     tagline: 'Can you keep your eyes on one ball while everything gets chaotic?',
-    meta: `${config.ballCount} balls · ${config.trackingMs / 1000} seconds · 1 target`,
+    // {n}: the ball-count setting; {seconds}: trackingMs in seconds.
+    meta: '{n} balls · {seconds} seconds · 1 target',
     help: "You'll be given a named ball. Keep track of it while the balls move and collide. At the end, find your target.",
     button: 'Start Game',
   },
@@ -33,14 +34,16 @@ export const copy = {
     playAgain: 'Play Again',
   },
 
-  sound: {
-    on: { icon: '🔊', label: 'Sound on' },
-    off: { icon: '🔇', label: 'Sound off' },
-  },
-
-  theme: {
-    groupLabel: 'Theme',
-    options: { light: 'Light', dark: 'Dark', system: 'System' },
+  settings: {
+    /** The ⚙ button's accessible name and the drawer's heading. */
+    title: 'Settings',
+    close: 'Close settings',
+    sections: { game: 'Game', appearance: 'Appearance' },
+    balls: { label: 'Balls', value: '{n} balls' },
+    speed: { label: 'Speed', options: { slow: 'Slow', normal: 'Normal', fast: 'Fast', extreme: 'Extreme' } },
+    theme: { label: 'Theme', options: { light: 'Light', dark: 'Dark', system: 'System' } },
+    sound: { label: 'Sound', on: 'On', off: 'Off' },
+    locked: 'Some settings are locked until this round ends.',
   },
 
   stats: {

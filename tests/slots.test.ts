@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { config } from '../src/config.ts';
-import { createRound } from '../src/game/round.ts';
-import { assignSlots, clockAngle, easeInOut, glidePoint, slotAngle, slotPosition } from '../src/game/slots.ts';
+import { ballRadiusFor, createRound } from '../src/game/round.ts';
+import { assignSlots, clockAngle, easeInOut, glidePoint, ringRadiusFor, slotAngle, slotPosition } from '../src/game/slots.ts';
 import { shuffle } from '../src/util/random.ts';
 
 const n = config.ballCount;
@@ -37,6 +37,44 @@ describe('ring geometry (SPEC §7)', () => {
   });
 });
 
+describe('the ring for every ball count (SPEC §7)', () => {
+  const counts = Array.from({ length: config.ballCountMax - config.ballCountMin + 1 }, (_, i) => config.ballCountMin + i);
+
+  it('is slotRadius at the default count and keeps the balls’ outer edge in place', () => {
+    expect(ringRadiusFor(config.ballRadius, config)).toBe(config.slotRadius);
+    expect(ringRadiusFor(ballRadiusFor(10), config)).toBeCloseTo(0.83, 2);
+    expect(ringRadiusFor(ballRadiusFor(30), config)).toBeCloseTo(0.875, 3);
+    for (const n of counts) {
+      const r = ballRadiusFor(n);
+      expect(ringRadiusFor(r, config) + r).toBeCloseTo(config.slotRadius + config.ballRadius, 12);
+    }
+  });
+
+  it('leaves every pair of neighbours a clear gap, inside the arena', () => {
+    for (const n of counts) {
+      const r = ballRadiusFor(n);
+      const ring = ringRadiusFor(r, config);
+      const a = slotPosition(1, n, ring);
+      const b = slotPosition(2, n, ring);
+      expect(Math.hypot(a.x - b.x, a.y - b.y) - 2 * r, `${n} balls`).toBeGreaterThan(config.spawnGap);
+      expect(ring + r).toBeLessThan(1);
+    }
+  });
+
+  it('numbers every ball of a small and a large game clockwise, 1..n', () => {
+    for (const n of [config.ballCountMin, config.ballCountMax]) {
+      for (let i = 0; i < 100; i++) {
+        const { balls } = createRound({ ballCount: n, speedFactor: 1 });
+        const slots = assignSlots(balls);
+        expect([...slots].sort((x, y) => x - y)).toEqual([...Array(n).keys()].map((k) => k + 1));
+        const angles = balls.map((b, index) => ({ slot: slots[index], angle: clockAngle(b.x, b.y) }));
+        angles.sort((x, y) => x.slot - y.slot);
+        for (let k = 1; k < n; k++) expect(angles[k].angle).toBeGreaterThanOrEqual(angles[k - 1].angle);
+      }
+    }
+  });
+});
+
 describe('assignSlots', () => {
   it('gives slots 1..n in clockwise order from 12 o’clock', () => {
     for (let i = 0; i < 200; i++) {
@@ -64,17 +102,20 @@ describe('assignSlots', () => {
 
 describe('spawn never uses the ring (SPEC §2.2)', () => {
   it('starts every ball unslotted and off the slot centers', () => {
-    const slotCenters = Array.from({ length: n }, (_, k) => slotPosition(k + 1, n, r));
-    let slotted = 0;
-    let closest = Infinity;
-    for (let i = 0; i < 2_000; i++) {
-      for (const ball of createRound().balls) {
-        if (ball.slot !== null) slotted++;
-        for (const c of slotCenters) closest = Math.min(closest, Math.hypot(ball.x - c.x, ball.y - c.y));
+    for (const [count, rounds] of [[n, 2_000], [config.ballCountMin, 500], [config.ballCountMax, 500]] as const) {
+      const ring = ringRadiusFor(ballRadiusFor(count), config);
+      const slotCenters = Array.from({ length: count }, (_, k) => slotPosition(k + 1, count, ring));
+      let slotted = 0;
+      let closest = Infinity;
+      for (let i = 0; i < rounds; i++) {
+        for (const ball of createRound({ ballCount: count, speedFactor: 1 }).balls) {
+          if (ball.slot !== null) slotted++;
+          for (const c of slotCenters) closest = Math.min(closest, Math.hypot(ball.x - c.x, ball.y - c.y));
+        }
       }
+      expect(slotted).toBe(0);
+      expect(closest).toBeGreaterThan(1e-6);
     }
-    expect(slotted).toBe(0);
-    expect(closest).toBeGreaterThan(1e-6);
   });
 });
 
