@@ -1,0 +1,22 @@
+.arena {
+  position: relative;
+  width: var(--arena-size);
+  height: var(--arena-size);
+  border-radius: 50%;
+  background: var(--arena);
+  box-shadow:
+    inset 0 0 0 2px var(--arena-edge),
+    0 12px 32px rgb(var(--shadow) / 0.08);
+  transition: opacity 200ms ease;
+}
+
+/* IDLE: empty and faint behind the start card (SPEC §12). */
+[data-screen='start'] .arena {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena {
+    transition: none;
+  }
+}

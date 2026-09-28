@@ -1,0 +1,36 @@
+/* Contrast (WCAG): text ≥ 13.3, muted ≥ 5.3, on-accent ≥ 6.0, ball/arena ≥ 4.1, focus ≥ 4.8 in both themes. */
+:root {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --text: #172030;
+  --muted: #566174;
+  --arena: #e6ebf3;
+  --arena-edge: #c9d2e0;
+  --ball: #2f6bd8;
+  --target: #e0533b;
+  --accent: #2458c6;
+  --on-accent: #ffffff;
+  --focus: #6b46e5;
+  --control: #e9edf3;
+  --border: #dde3ec;
+  --shadow: 23 32 48;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d121c;
+  --surface: #1a2232;
+  --text: #e7ebf3;
+  --muted: #98a3b6;
+  --arena: #172033;
+  --arena-edge: #2b3750;
+  --ball: #5b91f0;
+  --target: #ff7a5e;
+  --accent: #5b91f0;
+  --on-accent: #0d121c;
+  --focus: #b39dff;
+  --control: #131a27;
+  --border: #263145;
+  --shadow: 0 0 0;
+}

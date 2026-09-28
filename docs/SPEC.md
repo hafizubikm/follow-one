@@ -11,7 +11,7 @@ This document is the single source of truth. Every numeric value below is a defa
 ## 0. Tech stack and project shape
 
 - Vite + TypeScript (strict), no UI framework. Plain CSS with custom properties.
-- Output is a static site (`npm run build` → `dist/`, set `base: './'` so it also works from any subpath or `file://`).
+- Output is a static site (`npm run build` → `dist/`) that works from any subpath and from `file://`. `base: './'` covers subpaths. For `file://`, the build emits one deferred classic script (IIFE) and no `crossorigin` attributes, because browsers block module scripts and CORS-mode stylesheets on `file://` pages.
 - No backend, accounts, database, analytics, ads, leaderboards, multiplayer, social login or payments.
 - Vitest for pure modules. `physics/`, `game/` and `names/` must be importable without a DOM.
 
@@ -19,6 +19,7 @@ This document is the single source of truth. Every numeric value below is a defa
 src/
   main.ts                 bootstrap: build the page shell, wire modules, start the loop
   config.ts               every tunable (see §11)
+  copy.ts                 every user-facing string (§3)
   game/
     stateMachine.ts       states, transitions, phase timers (§12)
     round.ts              new-round setup: spawn, target pick, name assignment
@@ -28,9 +29,11 @@ src/
     world.ts              integrate, boundary, ball–ball collisions, speed regulation (§6)
     vec.ts
   render/
+    dom.ts                tiny element helpers (el, aria-hidden icon)
+    header.ts             title, sound toggle, theme control
     arena.ts              arena element, ball elements, ring labels, ball visual states
     hud.ts                message line, timer, aria-live region
-    screens.ts            start screen, result card
+    screens.ts            start screen, stats strip, result card
   input/
     selection.ts          enables/locks ball buttons, keyboard handling
   audio/
@@ -42,6 +45,8 @@ src/
     greek.ts
   util/
     random.ts             randomInt, shuffle (Fisher–Yates)
+    storage.ts            try/catch wrappers around an injected localStorage
+  styles/                 plain CSS: tokens, base, layout, then one file per render module
 tests/
   physics.test.ts  round.test.ts  slots.test.ts  score.test.ts  stateMachine.test.ts
 ```
@@ -97,7 +102,7 @@ The game is only fun if tracking is the only way to win.
 
 ## 3. Screens and copy
 
-Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's name, `#{n}` = slot number.
+Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's name, `#{pickedSlot}` / `#{targetSlot}` = slot numbers. The numbers in the start meta line come from config (`ballCount`, `trackingMs`).
 
 | Moment | Text |
 |---|---|
@@ -117,7 +122,7 @@ Use this copy exactly. `{name}` = target name, `{picked}` = the picked ball's na
 | Correct headline | 🎯 Nailed it! |
 | Correct sub-line | You found {name}. |
 | Incorrect headline | 👀 Not quite! |
-| Incorrect sub-line | You picked {picked} (#{n}). {name} was #{n}. |
+| Incorrect sub-line | You picked {picked} (#{pickedSlot}). {name} was #{targetSlot}. |
 | Result stats | Round · Score · Accuracy · Streak 🔥 · Best 🔥 |
 | Play again button | Play Again |
 | Sound toggle | 🔊 Sound on / 🔇 Sound off |
@@ -134,7 +139,7 @@ Never use technical language ("tracking phase initiated", "select target entity"
 ## 4. Layout and responsiveness
 
 - Vertical stack: **header** (title, sound toggle, theme control) → **HUD** (message + timer; fixed height so nothing jumps) → **arena** → **stats strip** (Round · Score · Streak) or, after a round, the **result card**.
-- Arena diameter = `min(available width − padding, available height − chrome)`, capped at 640 px on desktop. Mobile portrait: nearly full width. Landscape phones: height-limited, still playable.
+- Arena diameter = `min(available width − padding, available height − chrome)`, capped at 640 px (`arenaMaxPx`) on desktop. Mobile portrait: nearly full width. Landscape phones: height-limited, still playable.
 - No horizontal scrolling in any state. Size elements correctly rather than hiding overflow.
 - Use `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and safe-area insets for header/footer padding.
 - Overlays never cover the balls during `TARGET_INTRO`, `COUNTDOWN`, `TRACKING` or `RETURNING`. Countdown numbers and the timer live in the HUD, not in the arena center.
@@ -243,7 +248,8 @@ Never teleport balls, never reposition them per frame, never treat the target di
 
 **Theme**
 - Options `light | dark | system`, default `system`. `system` follows `prefers-color-scheme` live through a `matchMedia` listener.
-- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`. Every screen, card, button, the HUD and the arena use them.
+- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow`. Every screen, card, button, the HUD and the arena use them.
+- Look: clean and calm. Soft neutral background, white/slate surfaces, medium-blue balls, coral target; the dark theme is deep navy/charcoal. System font stack, rounded corners, light shadows; the arena is the focus.
 - Persist under `followone.theme`; wrap all localStorage access in try/catch and fall back to defaults.
 - Apply the stored theme from a tiny inline script in `<head>` before stylesheets load to avoid a flash.
 - Contrast: text ≥ 4.5:1; ball vs arena ≥ 3:1 in both themes; `--target` clearly distinct from `--ball` for common color-vision deficiencies (red/coral vs blue is fine, plus the glyphs).
@@ -297,6 +303,9 @@ export const config = {
   settleMs: 300,
   suspenseMs: 1000,
   revealMs: 800,
+
+  // layout
+  arenaMaxPx: 640,          // desktop cap on the arena diameter (§4)
 
   score: { correct: 100, streakBonus: 25 },
   storageKeys: { theme: 'followone.theme', sound: 'followone.sound', best: 'followone.best' },

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Runs before any stylesheet so the first paint already has the right theme. Mirrors src/theme/theme.ts. -->
+    <script>
+      (function () {
+        var pref = null;
+        try {
+          pref = localStorage.getItem(__THEME_KEY__);
+        } catch (e) {}
+        document.documentElement.dataset.theme =
+          pref === 'light' || pref === 'dark'
+            ? pref
+            : matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light';
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="__APP_DESCRIPTION__" />
+    <title>__APP_TITLE__</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

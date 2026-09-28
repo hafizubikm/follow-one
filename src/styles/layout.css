@@ -1,0 +1,76 @@
+/* Page shell (SPEC §4): header, then a stage stacking HUD → arena → footer. */
+#app {
+  --gutter: 16px;
+  --hud-h: 64px;
+  --footer-h: 56px;
+  --stack-gap: 12px;
+  --arena-min: 120px;
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: calc(var(--arena-max) + 2 * var(--gutter));
+  height: 100vh;
+  height: 100svh;
+  margin-inline: auto;
+  padding-inline: max(var(--gutter), env(safe-area-inset-left)) max(var(--gutter), env(safe-area-inset-right));
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The start overlay shares the stage's grid cell and geometry, so its card sits exactly on the arena.
+   Top-aligned: spare height collects below the footer, where the result card extends. */
+.stage,
+.start-screen {
+  grid-row: 2;
+  grid-column: 1;
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--stack-gap);
+  padding-bottom: 8px;
+}
+
+/* Arena diameter = min(width, height left after HUD and footer), capped; computed identically in every state. */
+.stage > *,
+.start-screen > * {
+  --arena-size: max(
+    var(--arena-min),
+    min(100cqw, 100cqh - var(--hud-h) - var(--footer-h) - 2 * var(--stack-gap), var(--arena-max))
+  );
+  --panel-w: min(100cqw, max(var(--arena-size), 32rem));
+  flex: none;
+}
+
+@supports not (width: 1cqw) {
+  .stage > *,
+  .start-screen > * {
+    --arena-size: min(100vw - 2 * var(--gutter), 100vh - 220px, var(--arena-max));
+    --panel-w: min(100vw - 2 * var(--gutter), max(var(--arena-size), 32rem));
+  }
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--panel-w);
+  height: var(--footer-h);
+}
+
+@media (max-width: 480px) {
+  #app {
+    --hud-h: 60px;
+    --footer-h: 48px;
+  }
+}
+
+/* Landscape phones: height is the constraint, so trim the chrome. */
+@media (max-height: 520px) {
+  #app {
+    --hud-h: 44px;
+    --footer-h: 40px;
+    --stack-gap: 8px;
+  }
+}

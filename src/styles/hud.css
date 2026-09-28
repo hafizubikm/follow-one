@@ -1,0 +1,51 @@
+/* Fixed height (--hud-h) so messages of one or two lines never move the arena. */
+.hud {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: 8px;
+  width: var(--panel-w);
+  height: var(--hud-h);
+}
+
+.hud-message {
+  grid-column: 2;
+  font-size: 1.125rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.hud-timer {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 3rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--control);
+  font-size: 1.25rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.hud-timer:empty {
+  visibility: hidden;
+}
+
+@media (max-width: 480px) {
+  .hud {
+    grid-template-columns: 3rem minmax(0, 1fr) 3rem;
+  }
+
+  .hud-message {
+    font-size: 1.0625rem;
+  }
+}
+
+@media (max-height: 520px) {
+  .hud-message {
+    font-size: 1rem;
+  }
+}

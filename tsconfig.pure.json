@@ -1,0 +1,9 @@
+{
+  "//": "Pure modules get no DOM types, so any window/document/timer use fails typecheck.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src/config.ts", "src/copy.ts", "src/physics", "src/game", "src/names", "src/util"]
+}
