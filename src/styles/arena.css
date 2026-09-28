@@ -1,4 +1,6 @@
 .arena {
+  --ball-d: calc(var(--arena-size) * var(--ball-r));
+
   position: relative;
   width: var(--arena-size);
   height: var(--arena-size);
@@ -13,6 +15,21 @@
 /* IDLE: empty and faint behind the start card (SPEC §12). */
 [data-screen='start'] .arena {
   opacity: 0.5;
+}
+
+/* ---------- balls ---------- */
+
+/* Centered on the arena center; the renderer moves each ball with a per-frame transform. */
+.ball {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--ball-d);
+  height: var(--ball-d);
+  margin: calc(var(--ball-d) / -2);
+  border-radius: 50%;
+  background: var(--ball);
+  will-change: transform;
 }
 
 @media (prefers-reduced-motion: reduce) {

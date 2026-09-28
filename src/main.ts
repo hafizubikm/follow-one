@@ -7,6 +7,7 @@ import './styles/arena.css';
 import './styles/screens.css';
 import { createSfx } from './audio/sfx.ts';
 import { config } from './config.ts';
+import { startDebug } from './debug.ts';
 import { createArena } from './render/arena.ts';
 import { el } from './render/dom.ts';
 import { createHeader } from './render/header.ts';
@@ -34,8 +35,9 @@ app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
 // The stage keeps HUD, arena and footer together; the footer holds the stats strip or the result card.
 const stage = el('main', 'stage');
 const footer = el('div', 'footer');
+const arena = createArena();
 footer.append(createStatsStrip().el);
-stage.append(createHud().el, createArena().el, footer);
+stage.append(createHud().el, arena.el, footer);
 
 app.append(
   createHeader(theme, sfx),
@@ -43,4 +45,10 @@ app.append(
   // Phase 4 routes this through the state machine; for now it only reveals the play layout.
   createStartScreen(() => setScreen(app, 'play')),
 );
-setScreen(app, 'start');
+
+if (import.meta.env.DEV && new URLSearchParams(location.search).get('debug') === '1') {
+  setScreen(app, 'play');
+  startDebug(arena.el);
+} else {
+  setScreen(app, 'start');
+}

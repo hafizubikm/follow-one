@@ -18,6 +18,7 @@ This document is the single source of truth. Every numeric value below is a defa
 ```
 src/
   main.ts                 bootstrap: build the page shell, wire modules, start the loop
+  debug.ts                dev-only free-run (`?debug=1`, §13): balls bounce forever, speed/radius sliders
   config.ts               every tunable (see §11)
   copy.ts                 every user-facing string (§3)
   game/
@@ -44,7 +45,7 @@ src/
     packs.ts              NamePack type, registry, getPack(id)
     greek.ts
   util/
-    random.ts             randomInt, shuffle (Fisher–Yates)
+    random.ts             randomInt, randomBetween, shuffle (Fisher–Yates)
     storage.ts            try/catch wrappers around an injected localStorage
   styles/                 plain CSS: tokens, base, layout, then one file per render module
 tests/
@@ -201,14 +202,15 @@ Slot numbers (1–15) render as small muted labels just outside each slot during
 
 ## 6. Physics
 
-Runs only in `TRACKING`. Pure functions over `Ball[]`; no DOM access; deterministic given inputs.
+Runs only in `TRACKING`. Pure functions over the physical part of each ball (`Body`: position, velocity, radius), so physics never sees ids, names or the target; no DOM access; deterministic given inputs (the random source for the two fallbacks below is an input, `Math.random` by default).
 
 - **Timestep.** Fixed `physicsHz = 120`. The rAF loop accumulates frame time clamped to `maxFrameMs = 50` and steps the world. The 15 s timer, the reveal fade and every phase timer use this same simulation clock, so a hidden or throttled tab pauses the round instead of desyncing it.
-- **Spawn.** Rejection-sample positions with `|p| ≤ 1 − r − spawnMargin` and pairwise center distance `≥ 2r + spawnGap`. Direction uniform random; speed `baseSpeed × rand(0.9, 1.1)`.
+- **Spawn.** Rejection-sample positions with `|p| ≤ 1 − r − spawnMargin` and pairwise center distance `≥ 2r + spawnGap`. Direction uniform random; speed `baseSpeed × rand(spawnSpeedRange)` (default 0.9–1.1).
 - **Integrate.** `p += v · dt`.
 - **Arena boundary.** If `|p| + r > 1`: `n = p / |p|`; set `p = n · (1 − r)`; if `v · n > 0` reflect `v -= 2 (v · n) n`.
 - **Ball–ball** (equal mass, elastic). For each pair with `d = |pB − pA| < 2r`: `n = (pB − pA) / d` (random unit vector if `d ≈ 0`); push each ball apart by `(2r − d) / 2` along `n`; let `s = (vA − vB) · n`; if `s > 0` (approaching): `vA -= s · n`, `vB += s · n`. Run `collisionPasses = 3` per step so clusters settle without jitter.
-- **Speed regulation** (after collisions): lerp each ball's `|v|` toward `baseSpeed` by `speedRestore` per step, then clamp to `speedBand × baseSpeed`. Keeps every ball lively, prevents dead stops and runaways, and keeps collisions visibly physical.
+- **Speed regulation** (after collisions): lerp each ball's `|v|` toward `baseSpeed` by `speedRestore` per step, then clamp to `speedBand × baseSpeed`. Keeps every ball lively, prevents dead stops and runaways, and keeps collisions visibly physical. A velocity of exactly zero (a square hit on a ball moving across the line of impact) takes a random direction.
+- **Step order.** integrate → boundary → `collisionPasses` × (ball–ball pass → boundary) → speed regulation. Re-applying the boundary after each pass keeps the boundary invariant exact when a collision pushes a ball into the wall.
 - **Defaults.** `baseSpeed = 0.45` arena radii/second (≈4.5 s to cross the arena). Tune for feel in the debug free-run mode.
 - **Invariants** (unit-tested over ≥ 10 000 steps): no `NaN`; every ball satisfies `|p| + r ≤ 1 + 1e-6`; no pair overlaps by more than `1e-3` after a step; every speed within the band; no ball's speed is exactly zero for more than one step.
 
@@ -280,6 +282,7 @@ export const config = {
   slotRadius: 0.85,
   spawnMargin: 0.02,
   spawnGap: 0.03,
+  spawnSpeedRange: [0.9, 1.1], // × baseSpeed at spawn
 
   // motion
   baseSpeed: 0.45,          // arena radii per second

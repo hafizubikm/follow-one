@@ -1,3 +1,4 @@
+import { config } from '../config.ts';
 import { el } from './dom.ts';
 
 export interface Arena {
@@ -5,5 +6,7 @@ export interface Arena {
 }
 
 export function createArena(): Arena {
-  return { el: el('div', 'arena') };
+  const arena = el('div', 'arena');
+  arena.style.setProperty('--ball-r', String(config.ballRadius));
+  return { el: arena };
 }

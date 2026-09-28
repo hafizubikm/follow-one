@@ -7,6 +7,7 @@ export const config = {
   slotRadius: 0.85,
   spawnMargin: 0.02,
   spawnGap: 0.03,
+  spawnSpeedRange: [0.9, 1.1], // × baseSpeed at spawn
 
   // motion
   baseSpeed: 0.45, // arena radii per second

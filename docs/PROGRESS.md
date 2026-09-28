@@ -39,3 +39,33 @@
 - Below about 360px wide the header wraps to two rows. This is intentional and never overflows.
 - In `npm run dev` the CSS is injected by JavaScript, so the first paint can be unstyled. The production build links the CSS as render-blocking.
 - The Browser pane can't open `file://` pages (it shows static snapshots). Headless Chrome can: `--dump-dom` prints the DOM, but Chrome doesn't exit on its own here, so cap it with a timeout.
+
+## 2026-09-29 — Phase 2: Physics and round setup (headless)
+
+### Done
+- `util/random.ts`: `randomInt`, `randomBetween`, Fisher–Yates `shuffle`, always on `Math.random`.
+- `physics/vec.ts`, `physics/world.ts`: `stepWorld` = integrate → boundary → `collisionPasses` × (ball–ball pass → boundary) → speed regulation. Physics works on `Body` (position, velocity, radius), so it cannot see ids, names or the target. The two fallbacks (coincident centers, zero velocity) take their random source as a parameter.
+- `names/packs.ts` + `names/greek.ts`: registry and `getPack(id)`.
+- `game/round.ts`: `createRound()` shuffles names, rejection-samples the layout (§6 bounds), picks `targetId = randomInt(ballCount)`; `slot` starts `null`.
+- `debug.ts`: `?debug=1` free-run in `npm run dev` with sliders for `baseSpeed` and `ballRadius`, respawn, and fps/speed readouts. Gated on `import.meta.env.DEV`; the production bundle doesn't contain it (checked by grepping the build).
+- Tests (48 total): §6 invariants after every step over 10 rounds × 12 000 steps, plus "nobody gets stuck" (every ball crosses > 1 unit in x and y); wall reflection; elastic head-on swap; momentum/energy conservation; coincident-center split; speed ease and clamp; zero-speed recovery; determinism; a source scan that fails if `physics/` mentions the target or names; 15 000 rounds → uniform target, uniform names on ball 0 and on the target, uniform first-ball direction, no repeated layout; spawn bounds and gaps; the greek pack matches the SPEC §5 list.
+- Mutation check: removing the per-pass boundary, adding `isTarget` to `Body`, or dropping the speed clamp each fail the suite.
+
+### Spec edits
+- §0: `debug.ts`; `random.ts` also exports `randomBetween`.
+- §6: physics works on `Body`; explicit step order; zero-velocity fallback; spawn speed uses `spawnSpeedRange`.
+- §11: new key `spawnSpeedRange: [0.9, 1.1]` (the value §6 already gave; no default changed).
+
+### Verified in the browser
+- `?debug=1` (dev server): 15 balls bounce and collide at 60 fps. Sampling the rendered transforms for 4 s: max `|p| + r` = 1.0000, closest pair = 0.1800 (= 2r), every ball moved. Sliders change speed live (0.8 → mean 0.793) and radius respawns.
+- Measured headless over 1.2 M steps: worst overlap 5.6e-4 (limit 1e-3), boundary error 2e-16, speeds pinned to the 0.315–0.585 band. Defaults (`baseSpeed 0.45`, `ballRadius 0.09`) look trackable; unchanged.
+
+### SPEC §14 items touched
+- Verified: `physics/` has no reference to the target (test); target, names, positions and velocities re-randomized every round (test); balls move, bounce, collide and never escape, stall or run away (tests + debug run); all Vitest tests pass.
+
+### Deferred
+- The debug loop steps physics without render interpolation; phase 3's loop adds it and handles resize.
+- "Spawn positions are never ring slots" gets its test in phase 5, with `slots.ts`.
+
+### Known issues / notes
+- A Vite dev server for this repo was already running on port 5173, so the Browser pane used it rather than starting another.
