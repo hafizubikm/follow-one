@@ -3,7 +3,9 @@
 // Its text is for the developer, not the player, so it stays out of copy.ts.
 import { config } from './config.ts';
 import { spawnBodies } from './game/round.ts';
+import { startLoop } from './loop.ts';
 import { stepWorld, type Body } from './physics/world.ts';
+import type { Arena, BallFrame } from './render/arena.ts';
 import { el } from './render/dom.ts';
 
 const panelStyle = [
@@ -22,16 +24,15 @@ const panelStyle = [
   'box-shadow:0 8px 24px rgb(var(--shadow) / 0.15)',
 ].join(';');
 
-export function startDebug(arena: HTMLElement): void {
+export function startDebug(arena: Arena): void {
   const settings = { ...config, baseSpeed: config.baseSpeed as number, ballRadius: config.ballRadius as number };
   let bodies: Body[] = [];
-  let dots: HTMLElement[] = [];
+  let prev: BallFrame[] = [];
 
   const respawn = () => {
     bodies = spawnBodies(settings);
-    dots.forEach((dot) => dot.remove());
-    dots = bodies.map(() => arena.appendChild(el('div', 'ball')));
-    arena.style.setProperty('--ball-r', String(settings.ballRadius));
+    prev = bodies.map(({ x, y }) => ({ x, y }));
+    arena.el.style.setProperty('--ball-r', String(settings.ballRadius));
   };
 
   const readout = el('output');
@@ -53,26 +54,20 @@ export function startDebug(arena: HTMLElement): void {
   respawn();
 
   const stepMs = 1000 / config.physicsHz;
-  let last = performance.now();
-  let acc = 0;
   let frames = 0;
-  let windowStart = last;
+  let windowStart = performance.now();
 
-  const frame = (now: number) => {
-    acc += Math.min(now - last, config.maxFrameMs);
-    last = now;
-    while (acc >= stepMs) {
+  startLoop(stepMs, config.maxFrameMs, {
+    step() {
+      prev = bodies.map(({ x, y }) => ({ x, y }));
       stepWorld(bodies, stepMs / 1000, settings);
-      acc -= stepMs;
-    }
+    },
+    render(alpha) {
+      arena.render(bodies.map((b, i) => ({ x: prev[i].x + (b.x - prev[i].x) * alpha, y: prev[i].y + (b.y - prev[i].y) * alpha })));
 
-    const radiusPx = arena.clientWidth / 2;
-    bodies.forEach((b, i) => {
-      dots[i].style.transform = `translate3d(${b.x * radiusPx}px, ${b.y * radiusPx}px, 0)`;
-    });
-
-    frames++;
-    if (now - windowStart >= 500) {
+      frames++;
+      const now = performance.now();
+      if (now - windowStart < 500) return;
       const speeds = bodies.map((b) => Math.hypot(b.vx, b.vy));
       const mean = speeds.reduce((sum, s) => sum + s, 0) / speeds.length;
       readout.textContent =
@@ -80,10 +75,8 @@ export function startDebug(arena: HTMLElement): void {
         `${Math.min(...speeds).toFixed(3)} / ${mean.toFixed(3)} / ${Math.max(...speeds).toFixed(3)}`;
       frames = 0;
       windowStart = now;
-    }
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
+    },
+  });
 }
 
 function slider(name: string, min: number, max: number, step: number, value: number, onInput: (v: number) => void) {

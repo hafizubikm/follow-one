@@ -48,7 +48,7 @@ app.append(
 
 if (import.meta.env.DEV && new URLSearchParams(location.search).get('debug') === '1') {
   setScreen(app, 'play');
-  startDebug(arena.el);
+  startDebug(arena);
 } else {
   setScreen(app, 'start');
 }

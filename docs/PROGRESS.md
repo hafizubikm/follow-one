@@ -69,3 +69,31 @@
 
 ### Known issues / notes
 - A Vite dev server for this repo was already running on port 5173, so the Browser pane used it rather than starting another.
+
+## 2026-09-29 — Phase 3: Renderer and loop
+
+### Done
+- `util/fixedStep.ts` (pure): accumulates frame time clamped to `[0, maxFrameMs]`, returns whole 120 Hz steps, exposes `alpha` for interpolation.
+- `loop.ts`: the single rAF loop — N fixed steps, then one render with `alpha`. No timers anywhere.
+- `render/arena.ts`: 15 `<button>` balls (tabindex −1, arena `inert` until selection) with a drawn body inside. The button box is the hit area, `max(ball diameter, minHitPx)`. A ResizeObserver keeps the arena's pixel radius, and every frame each ball gets `translate3d(x·R, y·R)`; the transform is written only when it changes. The ball layer is hidden when there is no round.
+- Ball size is CSS-derived from the same `--arena-size` as the arena, via `--ball-r` from config, so JS and CSS never disagree on scale.
+- `?debug=1` now runs on the real renderer and loop, interpolating between the last two physics steps.
+- Tests (53 total): 60 Hz frames → exactly 2 steps each; remainder carried into `alpha`; a 60 s frame is clamped to 6 steps; negative frame times ignored; total simulated time tracks wall time under jittery frames.
+
+### Spec edits
+- §0: `loop.ts`, `util/fixedStep.ts`. §6: rendering interpolates between the last two steps. §5 / §11: new key `minHitPx: 44` (the 44 px §5 already required; no default changed).
+
+### Verified in the browser
+- Smoothness: sampled 180 frames with rAF intervals jittering 15.6–17.6 ms. 94% of per-frame moves are within ±10% of each ball's median (the rest are bounces). Without interpolation, jitter at 60 Hz alternates 1- and 3-step frames.
+- Resize/orientation mid-run: desktop → 375×812 (arena 343 px, body 30.9 px = 0.09 × 343, hit area 44 px) → 812×375 (arena 215 px). Balls rescale on the next frame, stay inside the arena and never cause horizontal or vertical scroll.
+- Throttled tab: stalling the main thread for 2 s moved balls at most 0.035 units (one clamped frame; unclamped would be ~0.9).
+- The normal page is unchanged: start screen, ball layer hidden, arena inert, no console errors. The production bundle still excludes the debug module.
+
+### SPEC §14 items touched
+- Verified: resizing and rotating mid-run rescales cleanly; a stalled tab pauses instead of desyncing (proxy test above; background tabs stop rAF entirely); balls ≥ 44 px hit area on mobile; no horizontal scroll at 1024×768, 375×812, 812×375; all Vitest tests pass.
+
+### Deferred
+- Ball looks (target highlight, picked, revealed), ring labels and live input: phases 4–5.
+
+### Known issues / notes
+- 812×375 still gives a 215 px arena, so ring slots will sit ~38 px apart and neighbouring 44 px hit areas will overlap slightly (noted in phase 1; revisit in phase 6).

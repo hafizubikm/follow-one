@@ -18,6 +18,7 @@ This document is the single source of truth. Every numeric value below is a defa
 ```
 src/
   main.ts                 bootstrap: build the page shell, wire modules, start the loop
+  loop.ts                 the single requestAnimationFrame loop: fixed steps, then one render (§6)
   debug.ts                dev-only free-run (`?debug=1`, §13): balls bounce forever, speed/radius sliders
   config.ts               every tunable (see §11)
   copy.ts                 every user-facing string (§3)
@@ -47,6 +48,7 @@ src/
   util/
     random.ts             randomInt, randomBetween, shuffle (Fisher–Yates)
     storage.ts            try/catch wrappers around an injected localStorage
+    fixedStep.ts          fixed-timestep accumulator with clamped frame time (§6)
   styles/                 plain CSS: tokens, base, layout, then one file per render module
 tests/
   physics.test.ts  round.test.ts  slots.test.ts  score.test.ts  stateMachine.test.ts
@@ -183,7 +185,7 @@ interface NamePack { id: string; label: string; names: string[] } // ≥ ballCou
 
 **Rendering (recommended):** 15 absolutely positioned elements inside the arena, moved each frame with `transform: translate3d(...)` (compositor-only; 15 elements is trivial at 60 fps). The same elements become `<button>`s in `SELECTION`, so there is no canvas↔DOM switch and no visual pop. Canvas 2D is acceptable for the motion phases only if the selection ring is a DOM overlay that matches the canvas drawing exactly.
 
-**Ball radius:** `ballRadius = 0.09` normalized (≈15 px on a 340 px arena, ≈29 px on 640 px). Selection hit area is at least 44 × 44 px regardless of drawn size.
+**Ball radius:** `ballRadius = 0.09` normalized (≈15 px on a 340 px arena, ≈29 px on 640 px). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size.
 
 **Ball visual states** (color is never the only cue):
 
@@ -204,7 +206,7 @@ Slot numbers (1–15) render as small muted labels just outside each slot during
 
 Runs only in `TRACKING`. Pure functions over the physical part of each ball (`Body`: position, velocity, radius), so physics never sees ids, names or the target; no DOM access; deterministic given inputs (the random source for the two fallbacks below is an input, `Math.random` by default).
 
-- **Timestep.** Fixed `physicsHz = 120`. The rAF loop accumulates frame time clamped to `maxFrameMs = 50` and steps the world. The 15 s timer, the reveal fade and every phase timer use this same simulation clock, so a hidden or throttled tab pauses the round instead of desyncing it.
+- **Timestep.** Fixed `physicsHz = 120`. The rAF loop accumulates frame time clamped to `maxFrameMs = 50` and steps the world. Rendering interpolates positions between the last two steps, so motion stays smooth when a display's refresh rate is not a multiple of 120 Hz. The 15 s timer, the reveal fade and every phase timer use this same simulation clock, so a hidden or throttled tab pauses the round instead of desyncing it.
 - **Spawn.** Rejection-sample positions with `|p| ≤ 1 − r − spawnMargin` and pairwise center distance `≥ 2r + spawnGap`. Direction uniform random; speed `baseSpeed × rand(spawnSpeedRange)` (default 0.9–1.1).
 - **Integrate.** `p += v · dt`.
 - **Arena boundary.** If `|p| + r > 1`: `n = p / |p|`; set `p = n · (1 − r)`; if `v · n > 0` reflect `v -= 2 (v · n) n`.
@@ -309,6 +311,7 @@ export const config = {
 
   // layout
   arenaMaxPx: 640,          // desktop cap on the arena diameter (§4)
+  minHitPx: 44,             // smallest ball hit area (§5)
 
   score: { correct: 100, streakBonus: 25 },
   storageKeys: { theme: 'followone.theme', sound: 'followone.sound', best: 'followone.best' },
