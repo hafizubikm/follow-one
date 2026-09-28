@@ -26,7 +26,8 @@
 }
 
 /* The button box is the hit area (≥ --hit-min); the body inside it is the drawn ball.
-   Centered on the arena center; the renderer moves it with a per-frame transform. */
+   Centered on the arena center; the renderer moves it with a per-frame transform.
+   Neutral balls share every rule here: any difference must come from a [data-look]. */
 .ball {
   position: absolute;
   top: 50%;
@@ -41,6 +42,8 @@
 }
 
 .ball-body {
+  display: grid;
+  place-items: center;
   width: var(--ball-d);
   height: var(--ball-d);
   border-radius: 50%;
@@ -50,8 +53,87 @@
     0 1px 3px rgb(var(--shadow) / 0.18);
 }
 
+.ball-glyph {
+  color: var(--on-accent);
+  font-size: calc(var(--ball-d) * 0.56);
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Names sit above the ball (below it near the top edge). --shift (−1..1, from x, set on the ball) slides the
+   anchor so the label stays inside the arena at the left and right edges. */
+.ball-label {
+  --gap: calc(var(--ball-d) / 2 + 6px);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.5;
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 2px 8px rgb(var(--shadow) / 0.16);
+  transform: translate(calc(-50% - var(--shift, 0) * 50%), calc(-100% - var(--gap)));
+}
+
+.ball-label[data-side='below'] {
+  transform: translate(calc(-50% - var(--shift, 0) * 50%), var(--gap));
+}
+
+.ball-label:empty {
+  display: none;
+}
+
+/* ---------- looks (SPEC §5); color is never the only cue ---------- */
+
+.ball[data-look] {
+  z-index: 1;
+}
+
+/* target: coral, ★, name, pulse. --strength fades all of it to neutral (SPEC §2.1). */
+.ball[data-look='target'] .ball-body {
+  background: color-mix(in oklab, var(--target) calc(var(--strength) * 100%), var(--ball));
+}
+
+.ball[data-look='target'] :is(.ball-glyph, .ball-label) {
+  opacity: var(--strength);
+}
+
+.ball[data-look='target']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--ball-d);
+  height: var(--ball-d);
+  margin: auto;
+  border-radius: 50%;
+  opacity: var(--strength);
+  animation: target-pulse 1.4s ease-out infinite;
+}
+
+@keyframes target-pulse {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--target) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 calc(var(--ball-d) * 0.5) color-mix(in srgb, var(--target) 0%, transparent);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .arena {
     transition: none;
+  }
+
+  /* The pulse is decorative; a still halo keeps the cue. */
+  .ball[data-look='target']::before {
+    animation: none;
+    box-shadow: 0 0 0 calc(var(--ball-d) * 0.16) color-mix(in srgb, var(--target) 35%, transparent);
   }
 }

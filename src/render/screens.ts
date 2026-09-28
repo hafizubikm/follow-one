@@ -5,7 +5,7 @@ import { el, icon } from './dom.ts';
 export type Screen = 'start' | 'play' | 'result';
 
 export function setScreen(root: HTMLElement, screen: Screen): void {
-  root.dataset.screen = screen;
+  if (root.dataset.screen !== screen) root.dataset.screen = screen;
 }
 
 export function createStartScreen(onStart: () => void): HTMLElement {
@@ -46,10 +46,14 @@ export function createStatsStrip(): StatsStrip {
   const score = stat(strip, copy.stats.score);
   const streak = stat(strip, copy.stats.streak, copy.stats.streakIcon);
 
+  const show = (node: HTMLElement, value: number) => {
+    const text = String(value);
+    if (node.textContent !== text) node.textContent = text;
+  };
   const update = (stats: StripStats) => {
-    round.textContent = String(stats.round);
-    score.textContent = String(stats.score);
-    streak.textContent = String(stats.streak);
+    show(round, stats.round);
+    show(score, stats.score);
+    show(streak, stats.streak);
   };
   update({ round: 0, score: 0, streak: 0 });
   return { el: strip, update };

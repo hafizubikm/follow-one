@@ -24,6 +24,8 @@ src/
   copy.ts                 every user-facing string (§3)
   game/
     stateMachine.ts       states, transitions, phase timers (§12)
+    session.ts            one game session: drives the machine, the round, physics, stats; emits cues
+    view.ts               what the HUD and each ball show, derived from the session (the only place the target is singled out before REVEAL)
     round.ts              new-round setup: spawn, target pick, name assignment
     slots.ts              ring geometry + angular slot assignment (§7)
     score.ts              scoring + session stats (§9)
@@ -252,7 +254,7 @@ Never teleport balls, never reposition them per frame, never treat the target di
 
 **Theme**
 - Options `light | dark | system`, default `system`. `system` follows `prefers-color-scheme` live through a `matchMedia` listener.
-- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow`. Every screen, card, button, the HUD and the arena use them.
+- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow` (`--on-accent` also colors the glyphs on balls). Every screen, card, button, the HUD and the arena use them.
 - Look: clean and calm. Soft neutral background, white/slate surfaces, medium-blue balls, coral target; the dark theme is deep navy/charcoal. System font stack, rounded corners, light shadows; the arena is the focus.
 - Persist under `followone.theme`; wrap all localStorage access in try/catch and fall back to defaults.
 - Apply the stored theme from a tiny inline script in `<head>` before stylesheets load to avoid a flash.
@@ -296,6 +298,7 @@ export const config = {
 
   // phase timing (ms)
   introMs: 2500,
+  countdownFrom: 3,         // countdown shows 3, 2, 1
   countdownStepMs: 1000,
   goMs: 500,
   trackingMs: 15000,
@@ -322,13 +325,13 @@ export const config = {
 
 ## 12. State machine
 
-One explicit machine in `game/stateMachine.ts`. All transitions go through `transition(to)`; illegal transitions throw in development. Phase timers are driven by the simulation clock in the single rAF loop.
+One explicit machine in `game/stateMachine.ts`. All transitions go through `transition(to)`; illegal transitions throw in development and are ignored in production. Player actions (Start Game, a pick, Play Again) are simply ignored outside the state that accepts them. Phase timers are driven by the simulation clock in the single rAF loop: a state's time is counted in whole physics steps, so `trackingMs` is exactly 1 800 steps of motion.
 
 | State | On enter | Exit |
 |---|---|---|
 | `IDLE` | Start screen visible; arena empty or faint. | Start Game → `TARGET_INTRO` |
 | `TARGET_INTRO` | `round++`; build the round (spawn, target, names); render all balls stationary; target in `target` state; HUD intro copy; unlock audio. | after `introMs` → `COUNTDOWN` |
-| `COUNTDOWN` | HUD shows 3, 2, 1, one per `countdownStepMs`, tick each; balls stationary, target still highlighted. | after 3 × `countdownStepMs` → `TRACKING` |
+| `COUNTDOWN` | HUD counts down from `countdownFrom` (3, 2, 1), one per `countdownStepMs`, tick each; balls stationary, target still highlighted. | after `countdownFrom` × `countdownStepMs` → `TRACKING` |
 | `TRACKING` | Physics on; timer starts; HUD "GO!" for `goMs` (GO sound) then "Keep your eyes on {name}"; highlight fades between `revealHoldMs` and `revealHoldMs + revealFadeMs`; at ≤ `finalWarningS` s remaining HUD "Stay focused!" + soft tick. Timer shows `ceil(remaining)`. | elapsed ≥ `trackingMs` → `TRACKING_COMPLETE` |
 | `TRACKING_COMPLETE` | Physics off, positions frozen; HUD "Nice! Time's up."; freeze sound. | after `freezeMs` → `RETURNING` |
 | `RETURNING` | Assign slots (§7); glide; HUD "Getting into position..."; slot numbers fade in. | after `returnMs` → `SELECTION` |
@@ -338,6 +341,8 @@ One explicit machine in `game/stateMachine.ts`. All transitions go through `tran
 | `RESULT` | Result card + stats; focus Play Again. | Play Again → `TARGET_INTRO` |
 
 Theme and sound controls work in every state. Ball input is only live in `SELECTION`.
+
+The timer is shown only in `TRACKING` and `TRACKING_COMPLETE` (where it reads 0).
 
 ---
 

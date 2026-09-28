@@ -97,3 +97,33 @@
 
 ### Known issues / notes
 - 812×375 still gives a 215 px arena, so ring slots will sit ~38 px apart and neighbouring 44 px hit areas will overlap slightly (noted in phase 1; revisit in phase 6).
+
+## 2026-09-29 — Phase 4: State machine and round flow
+
+### Done
+- `game/stateMachine.ts`: the ten states, the single legal successor of each, `phaseDurationMs`, and a machine whose clock is whole physics steps (elapsed = steps × 1000 / hz, so 300 steps is exactly 2 500 ms). A state's duration is read once, on entry. Illegal transitions throw when `strict` (dev) and are ignored otherwise.
+- `game/session.ts`: Start Game (ignored outside IDLE), round build + `round++` on TARGET_INTRO, physics only in TRACKING, positions frozen afterwards, and cues on the simulation clock (state entries, countdown beats 3/2/1, final ticks 5…1). It keeps the previous step's positions for render interpolation. For this phase the round rests at the freeze: TRACKING_COMPLETE's timer is disabled until phase 5 adds the ring.
+- `game/view.ts`: pure HUD and ball views — the only place the target is singled out before REVEAL. The renderers never receive `targetId`.
+- `copy.ts`: HUD rows of the §3 table verbatim (`{name}` via `fill`, `**bold**` via `textRuns`), countdown numerals from `config.countdownFrom`, glyphs ★ ✓ ✕.
+- HUD renderer: writes only on change (so the live region announces each instruction once); large numerals for 3·2·1·GO!; timer only in TRACKING/TRACKING_COMPLETE; coral ring in the last 5 s. The numeral pop-in and timer pulse are decorative Web Animations, skipped under reduced motion.
+- Arena renderer: `data-look`, `--strength` (fade), ★ glyph, name label (side chosen when it appears; anchor slides with x so it stays inside the arena), pulse halo (still under reduced motion). A neutral ball has no look attribute, no inline variables and empty glyph/label.
+- Tests (99 total): every legal/illegal transition; each timed state lasts exactly its step count (tracking = 1 800); waiting states never time out; reduced-motion glide and duration-on-entry; session flow, frozen balls, event timing to the step; interpolation; HUD copy per state and time; timer 15 → 1 then 0; highlight hold/fade/zero; and a step-by-step check that after the fade every ball view equals the target's (minus position) through the freeze.
+
+### Spec edits
+- §0: `game/session.ts`, `game/view.ts`. §11/§12: new key `countdownFrom: 3` (the count §12 already used). §12: illegal transitions ignored in production; player actions ignored outside their state; state time counted in whole steps; timer shown only in TRACKING/TRACKING_COMPLETE. §10: `--on-accent` also colors ball glyphs.
+
+### Verified in the browser
+- The Browser pane was hidden, which stops rAF (so the round correctly paused there). The flow was checked in headless Chrome over the DevTools protocol with a scratch script (not in the repo).
+- HUD timeline from the click: intro 0 s; 3/2/1 at 2.5/3.5/4.5 s; GO! with timer 15 at 5.5 s; tracking line at 6.0 s; timer steps each second; "Stay focused!" + urgent ring at 15.5 s (5 left); "Nice! Time's up." with 0 at 20.5 s; balls then stay frozen.
+- Screenshots: intro (bold name, coral ★ target, label, halo), countdown, GO!, mid-fade blend, after fade, final seconds, freeze; dark desktop and light 375×812. No horizontal scroll.
+- DOM fairness after the fade: the target's markup (minus its transform) equals every other ball's, computed styles match, and no ball has a look attribute, a styled child, or glyph/label text. 5/5 runs.
+- Found and fixed a leak: in Chrome, an element whose inline style is emptied through CSSOM (with no read in between) re-serializes as `style=""` even after `removeAttribute('style')`. The former target's label kept `style=""`, which no other ball had, failing 3/3 runs. Inline variables now live on the ball button, whose style always keeps its transform.
+
+### SPEC §14 items touched
+- Verified: Start Game begins a round; the target is shown highlighted and named before the countdown; 3-2-1-GO works and motion starts on GO; the timer counts 15 → 1 and freezes at 0; the highlight is fully gone by `revealHoldMs + revealFadeMs` and never returns before the freeze (unit test + DOM check); nothing in the DOM/CSS distinguishes the target during motion; HUD messages go through the live region; all Vitest tests pass.
+
+### Deferred
+- RETURNING → RESULT (slots, glide, selection, reveal, result card, scoring): phase 5. Sounds: phase 6.
+
+### Known issues / notes
+- The DOM fairness check needs a real browser (the lazy style sync is Chrome behavior), so it isn't in Vitest; the view-level test covers the logic, and the renderer comment records the pitfall.

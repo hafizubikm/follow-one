@@ -34,6 +34,19 @@
   visibility: hidden;
 }
 
+/* Countdown numerals and GO! */
+.hud-message[data-big] {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Last seconds: a coral ring; the number keeps full text contrast. */
+.hud-timer[data-urgent] {
+  box-shadow: inset 0 0 0 2px var(--target);
+}
+
 @media (max-width: 480px) {
   .hud {
     grid-template-columns: 3rem minmax(0, 1fr) 3rem;
@@ -47,5 +60,9 @@
 @media (max-height: 520px) {
   .hud-message {
     font-size: 1rem;
+  }
+
+  .hud-message[data-big] {
+    font-size: 1.75rem;
   }
 }

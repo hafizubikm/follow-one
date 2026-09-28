@@ -3,9 +3,11 @@
 // Its text is for the developer, not the player, so it stays out of copy.ts.
 import { config } from './config.ts';
 import { spawnBodies } from './game/round.ts';
+import { neutralBall } from './game/view.ts';
 import { startLoop } from './loop.ts';
 import { stepWorld, type Body } from './physics/world.ts';
-import type { Arena, BallFrame } from './render/arena.ts';
+import type { Vec } from './physics/vec.ts';
+import type { Arena } from './render/arena.ts';
 import { el } from './render/dom.ts';
 
 const panelStyle = [
@@ -27,7 +29,7 @@ const panelStyle = [
 export function startDebug(arena: Arena): void {
   const settings = { ...config, baseSpeed: config.baseSpeed as number, ballRadius: config.ballRadius as number };
   let bodies: Body[] = [];
-  let prev: BallFrame[] = [];
+  let prev: Vec[] = [];
 
   const respawn = () => {
     bodies = spawnBodies(settings);
@@ -63,7 +65,9 @@ export function startDebug(arena: Arena): void {
       stepWorld(bodies, stepMs / 1000, settings);
     },
     render(alpha) {
-      arena.render(bodies.map((b, i) => ({ x: prev[i].x + (b.x - prev[i].x) * alpha, y: prev[i].y + (b.y - prev[i].y) * alpha })));
+      arena.render({
+        balls: bodies.map((b, i) => neutralBall(prev[i].x + (b.x - prev[i].x) * alpha, prev[i].y + (b.y - prev[i].y) * alpha)),
+      });
 
       frames++;
       const now = performance.now();

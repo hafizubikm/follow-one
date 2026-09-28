@@ -19,6 +19,7 @@ export const config = {
 
   // phase timing (ms)
   introMs: 2500,
+  countdownFrom: 3, // countdown shows 3, 2, 1
   countdownStepMs: 1000,
   goMs: 500,
   trackingMs: 15000,
@@ -39,3 +40,16 @@ export const config = {
   score: { correct: 100, streakBonus: 25 },
   storageKeys: { theme: 'followone.theme', sound: 'followone.sound', best: 'followone.best' },
 } as const;
+
+/** The shape of config with plain number/string types, so tests can pass variants of it. */
+export type Config = Widen<typeof config>;
+
+type Widen<T> = T extends number
+  ? number
+  : T extends string
+    ? string
+    : T extends boolean
+      ? boolean
+      : T extends readonly [infer A, infer B]
+        ? readonly [Widen<A>, Widen<B>]
+        : { readonly [K in keyof T]: Widen<T[K]> };
