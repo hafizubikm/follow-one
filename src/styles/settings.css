@@ -124,6 +124,49 @@
   background: var(--border);
 }
 
+/* ---------- the color hint (SPEC §16), under the target swatches ---------- */
+
+/* Empty, it takes no room but stays in the tree, so its status region announces new advice. */
+.setting:has(> .color-hint:empty) {
+  row-gap: 0;
+}
+
+.color-hint {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.color-hint-fix {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  margin-inline-start: 2px;
+  padding: 2px 10px 2px 6px;
+  border-radius: 999px;
+  background: var(--control);
+  color: var(--text);
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.color-hint-fix:enabled:hover {
+  background: var(--border);
+}
+
+.color-hint-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1.5px var(--swatch-edge);
+}
+
+fieldset:disabled .color-hint-fix {
+  cursor: not-allowed;
+}
+
 /* ---------- small screens ---------- */
 
 /* Below 360px the drawer takes the full width, so four speed options still fit on one row. */

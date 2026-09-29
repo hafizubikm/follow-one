@@ -1,4 +1,5 @@
-/* Contrast (WCAG): text ≥ 13.3, muted ≥ 5.3, on-accent ≥ 6.0, ball/arena ≥ 4.1, focus ≥ 4.8 in both themes. */
+/* Contrast (WCAG): text ≥ 13.3, muted ≥ 5.3, on-accent ≥ 6.0, focus ≥ 4.8 in both themes.
+   tests/palette.test.ts checks the ball and target tones: against the arena, their ink, and every pair. */
 :root {
   color-scheme: light;
   --bg: #f3f5f9;
@@ -7,16 +8,54 @@
   --muted: #566174;
   --arena: #e6ebf3;
   --arena-edge: #c9d2e0;
-  --ball: #2f6bd8;
-  --target: #e0533b;
   --accent: #2458c6;
   --on-accent: #ffffff;
   --focus: #6b46e5;
   --control: #e9edf3;
   --border: #dde3ec;
   --shadow: 23 32 48;
+
+  /* Ball and target tones (SPEC §16; theme/palette.ts lists the options). Each has a fill, an ink for
+     glyphs on it, and an edge: the fill itself, or a darker rim where a light tone needs one on the arena. */
+  --ball-blue: #2f6bd8;
+  --ball-blue-ink: #ffffff;
+  --ball-blue-edge: var(--ball-blue);
+  --ball-purple: #8151db;
+  --ball-purple-ink: #ffffff;
+  --ball-purple-edge: var(--ball-purple);
+  --ball-green: #21954a;
+  --ball-green-ink: #ffffff;
+  --ball-green-edge: var(--ball-green);
+  --ball-orange: #f5871a;
+  --ball-orange-ink: #172030;
+  --ball-orange-edge: #a55115;
+  --ball-cyan: #00c0da;
+  --ball-cyan-ink: #172030;
+  --ball-cyan-edge: #097689;
+  --target-red: #e0533b;
+  --target-red-ink: #ffffff;
+  --target-red-edge: var(--target-red);
+  --target-pink: #e34992;
+  --target-pink-ink: #ffffff;
+  --target-pink-edge: var(--target-pink);
+  --target-yellow: #fbd530;
+  --target-yellow-ink: #172030;
+  --target-yellow-edge: #926e10;
+  --target-white: #ffffff;
+  --target-white-ink: #172030;
+  --target-white-edge: #6e7a8f;
+  --edge-w: 2px;
+
+  /* The chosen colors. main.ts points them at the player's choice (theme/palette.ts colorVars). */
+  --ball: var(--ball-blue);
+  --ball-ink: var(--ball-blue-ink);
+  --ball-edge: var(--ball-blue-edge);
+  --target: var(--target-red);
+  --target-ink: var(--target-red-ink);
+  --target-edge: var(--target-red-edge);
 }
 
+/* Tokens not repeated here keep their light value, or follow the dark fill they point at. */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --bg: #0d121c;
@@ -25,12 +64,33 @@
   --muted: #98a3b6;
   --arena: #172033;
   --arena-edge: #2b3750;
-  --ball: #5b91f0;
-  --target: #ff7a5e;
   --accent: #5b91f0;
   --on-accent: #0d121c;
   --focus: #b39dff;
   --control: #131a27;
   --border: #263145;
   --shadow: 0 0 0;
+
+  --ball-blue: #5b91f0;
+  --ball-blue-ink: #0d121c;
+  --ball-purple: #a181ef;
+  --ball-purple-ink: #0d121c;
+  --ball-green: #5ee38b;
+  --ball-green-ink: #0d121c;
+  --ball-orange: #ffa54b;
+  --ball-orange-ink: #0d121c;
+  --ball-orange-edge: var(--ball-orange);
+  --ball-cyan: #2cd0eb;
+  --ball-cyan-ink: #0d121c;
+  --ball-cyan-edge: var(--ball-cyan);
+  --target-red: #ff7a5e;
+  --target-red-ink: #0d121c;
+  --target-pink: #f96da4;
+  --target-pink-ink: #0d121c;
+  --target-yellow: #fae859;
+  --target-yellow-ink: #0d121c;
+  --target-yellow-edge: var(--target-yellow);
+  --target-white: #f2f5fa;
+  --target-white-ink: #0d121c;
+  --target-white-edge: var(--target-white);
 }

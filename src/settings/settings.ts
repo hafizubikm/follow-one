@@ -1,24 +1,29 @@
 import { config } from '../config.ts';
 import type { RoundSetup } from '../game/round.ts';
 import type { GameState } from '../game/stateMachine.ts';
+import { isBallColor, isTargetColor, type BallColor, type TargetColor } from '../theme/palette.ts';
 import { readKey, writeKey, type KeyValueStore } from '../util/storage.ts';
 
 export type SpeedPreset = keyof typeof config.speedPresets;
 
 export const speedPresets = Object.keys(config.speedPresets) as SpeedPreset[];
 
-/** The player's choices that shape a round (SPEC §16). Theme and sound persist on their own. */
+/** The player's choices that are locked during a round (SPEC §16). Theme and sound persist on their own. */
 export interface Settings {
   readonly ballCount: number;
   readonly speed: SpeedPreset;
   /** How long the balls move, in ms. */
   readonly trackingMs: number;
+  readonly ballColor: BallColor;
+  readonly targetColor: TargetColor;
 }
 
 export const defaultSettings: Settings = {
   ballCount: config.ballCount,
   speed: config.speedPreset,
   trackingMs: config.trackingMs,
+  ballColor: config.ballColor,
+  targetColor: config.targetColor,
 };
 
 /** A whole number of balls in the allowed range; anything unusable falls back to the default. */
@@ -45,6 +50,8 @@ export function sanitizeSettings(data: unknown): Settings {
     ballCount: typeof fields.ballCount === 'number' ? clampBallCount(fields.ballCount) : defaultSettings.ballCount,
     speed: isSpeedPreset(fields.speed) ? fields.speed : defaultSettings.speed,
     trackingMs: typeof fields.trackingMs === 'number' ? clampTrackingMs(fields.trackingMs) : defaultSettings.trackingMs,
+    ballColor: isBallColor(fields.ballColor) ? fields.ballColor : defaultSettings.ballColor,
+    targetColor: isTargetColor(fields.targetColor) ? fields.targetColor : defaultSettings.targetColor,
   };
 }
 

@@ -25,6 +25,8 @@ export interface ColorSchemeQuery {
 export interface ThemeController {
   readonly pref: ThemePref;
   setPref(pref: ThemePref): void;
+  /** Runs after the theme is applied again: a new preference, or a system switch. */
+  onChange(listener: () => void): void;
 }
 
 /** Mirrors the inline no-flash script in index.html; keep the two in step. */
@@ -34,8 +36,10 @@ export function createTheme(
   root: Pick<HTMLElement, 'dataset'>,
 ): ThemeController {
   let pref = parseThemePref(readKey(store, config.storageKeys.theme));
+  const listeners: Array<() => void> = [];
   const apply = () => {
     root.dataset.theme = resolveTheme(pref, systemDark.matches);
+    listeners.forEach((listener) => listener());
   };
 
   systemDark.addEventListener('change', apply);
@@ -49,6 +53,9 @@ export function createTheme(
       pref = next;
       writeKey(store, config.storageKeys.theme, next);
       apply();
+    },
+    onChange(listener) {
+      listeners.push(listener);
     },
   };
 }

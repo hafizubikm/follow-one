@@ -44,13 +44,14 @@
   white-space: nowrap;
 }
 
+/* A fixed brand mark in the default red; it never takes the player's target color (SPEC §16). */
 .brand::before {
   content: '';
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--target);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--target) 22%, transparent);
+  background: var(--target-red);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--target-red) 22%, transparent);
 }
 
 @media (max-height: 520px) {

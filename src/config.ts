@@ -47,6 +47,13 @@ export const config = {
   fullWidthMaxPx: 432, // full-width column up to this (phones); wider, half the extra goes to side margins (§4)
   minHitPx: 44, // smallest ball hit area (§5)
 
+  // colors (§16): ΔE is the OKLab distance ×100, deficiencies simulated as Machado et al. (2009) at full severity
+  ballColor: 'blue', // default Ball color setting
+  targetColor: 'red', // default Target color setting
+  colorPairFloor: 6, // min ΔE of every ball/target pair, normal vision and each deficiency, both themes
+  colorComfortNormal: 15, // comfortable at ≥ this under normal vision
+  colorComfortDeficient: 8, // and ≥ this under each deficiency; below either, Settings shows the color hint
+
   // sound
   collisionClicks: false, // optional collision clicks (§10)
   collisionClicksPerSecond: 6,

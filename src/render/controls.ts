@@ -97,6 +97,77 @@ export function segmentedChoice<T extends string>(
   };
 }
 
+export interface SwatchChoice<T extends string> extends Choice {
+  /** Checks an option from code (no change event), e.g. after the color hint's one-tap fix. */
+  set(value: T): void;
+  /** Focuses the checked swatch. */
+  focus(): void;
+  /** Adds a node under the swatches, inside the group (so it's disabled along with it). */
+  append(node: HTMLElement): void;
+}
+
+/**
+ * A radio group of color swatches (SPEC §16). `paint` gives each swatch's custom properties. The chosen one
+ * is marked by a ring and a ✓, and its name shows beside the label, so the choice never rests on color alone.
+ */
+export function swatchChoice<T extends string>(
+  label: string,
+  options: Readonly<Record<T, string>>,
+  value: T,
+  glyph: string,
+  paint: (key: T) => Readonly<Record<string, string>>,
+  onChange: (value: T) => void,
+): SwatchChoice<T> {
+  const fieldset = el('fieldset', 'setting');
+  const legend = el('legend', 'setting-head');
+  const shown = el('span', 'setting-value');
+  shown.setAttribute('aria-hidden', 'true');
+  legend.append(el('span', 'setting-label', label), shown);
+  const group = el('div', 'swatches');
+  const name = uniqueId('swatch');
+  const inputs = new Map<T, HTMLInputElement>();
+
+  const show = (key: T) => {
+    shown.textContent = options[key];
+  };
+  for (const key of Object.keys(options) as T[]) {
+    const input = el('input');
+    Object.assign(input, { type: 'radio', name, value: key, checked: key === value });
+    input.addEventListener('change', () => {
+      if (!input.checked) return;
+      show(key);
+      onChange(key);
+    });
+    inputs.set(key, input);
+    const dot = el('span', 'swatch-dot', glyph);
+    dot.setAttribute('aria-hidden', 'true');
+    for (const [property, color] of Object.entries(paint(key))) dot.style.setProperty(property, color);
+    const option = el('label', 'swatch');
+    option.append(input, dot, el('span', 'visually-hidden', options[key]));
+    group.append(option);
+  }
+  fieldset.append(legend, group);
+  show(value);
+
+  return {
+    el: fieldset,
+    setDisabled(disabled) {
+      fieldset.disabled = disabled;
+    },
+    set(key) {
+      const input = inputs.get(key);
+      if (input) input.checked = true;
+      show(key);
+    },
+    focus() {
+      for (const input of inputs.values()) if (input.checked) input.focus();
+    },
+    append(node) {
+      fieldset.append(node);
+    },
+  };
+}
+
 /** An on/off switch whose label never changes; the state is aria-checked plus a visible word. */
 export function switchRow(
   label: string,

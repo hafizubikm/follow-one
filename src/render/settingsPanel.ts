@@ -2,8 +2,9 @@ import type { Sfx } from '../audio/sfx.ts';
 import { config } from '../config.ts';
 import { copy, fill } from '../copy.ts';
 import type { Settings, SettingsStore } from '../settings/settings.ts';
+import { colorHint, toneVars, type BallColor, type TargetColor } from '../theme/palette.ts';
 import type { ThemeController } from '../theme/theme.ts';
-import { segmentedChoice, sliderRow, switchRow } from './controls.ts';
+import { segmentedChoice, sliderRow, swatchChoice, switchRow } from './controls.ts';
 import { el, lineIcon } from './dom.ts';
 
 export interface SettingsPanel {
@@ -48,8 +49,43 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     (seconds) => fill(text.duration.value, { seconds }),
     (seconds) => change({ trackingMs: seconds * 1000 }),
   );
+  const ballColor = swatchChoice(
+    text.ballColor.label,
+    text.ballColor.options,
+    settings.current.ballColor,
+    copy.glyphs.chosen,
+    (id) => toneVars('--swatch', 'ball', id),
+    (next) => {
+      change({ ballColor: next });
+      showHint();
+    },
+  );
+  const targetColor = swatchChoice(
+    text.targetColor.label,
+    text.targetColor.options,
+    settings.current.targetColor,
+    copy.glyphs.chosen,
+    (id) => toneVars('--swatch', 'target', id),
+    (next) => {
+      change({ targetColor: next });
+      showHint();
+    },
+  );
   const themeChoice = segmentedChoice(text.theme.label, text.theme.options, theme.pref, (pref) => theme.setPref(pref));
   const sound = switchRow(text.sound.label, text.sound, sfx.enabled, (on) => sfx.setEnabled(on));
+
+  const hint = colorHintRow((next) => {
+    // Focus moves to the newly chosen swatch before the hint, and the button in it, goes away.
+    targetColor.set(next);
+    targetColor.focus();
+    change({ targetColor: next });
+    showHint();
+  });
+  const showHint = () => hint.update(settings.current.ballColor, settings.current.targetColor);
+  targetColor.append(hint.el);
+  // The hint judges the current theme's tones (SPEC §16).
+  theme.onChange(showHint);
+  showHint();
 
   const dialog = el('dialog', 'settings');
   dialog.setAttribute('aria-labelledby', 'settings-title');
@@ -68,7 +104,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     head,
     note,
     section('game', text.sections.game, balls.el, speed.el, duration.el),
-    section('appearance', text.sections.appearance, themeChoice.el, sound),
+    section('appearance', text.sections.appearance, ballColor.el, targetColor.el, themeChoice.el, sound),
   );
 
   // A click whose press also began on the backdrop closes the drawer; a slider drag that ends
@@ -101,6 +137,57 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
       balls.setDisabled(locked);
       speed.setDisabled(locked);
       duration.setDisabled(locked);
+      ballColor.setDisabled(locked);
+      targetColor.setDisabled(locked);
+    },
+  };
+}
+
+interface ColorHintRow {
+  readonly el: HTMLElement;
+  update(ball: BallColor, target: TargetColor): void;
+}
+
+/**
+ * The color hint under the target swatches (SPEC §16). Its color name is a button that picks that color.
+ * A status region, so new advice is announced; empty while the pair is fine.
+ */
+function colorHintRow(onFix: (target: TargetColor) => void): ColorHintRow {
+  const text = copy.settings;
+  const row = el('p', 'color-hint');
+  row.id = 'color-hint';
+  row.setAttribute('role', 'status');
+  const fix = el('button', 'color-hint-fix');
+  fix.type = 'button';
+  // Reached by Tab, "White" alone says little; the sentence around it is its description.
+  fix.setAttribute('aria-describedby', row.id);
+  const dot = el('span', 'color-hint-dot');
+  dot.setAttribute('aria-hidden', 'true');
+  const name = el('span');
+  fix.append(dot, name);
+  const [before, after] = text.colorHint.split('{color}');
+  // Tones come from CSS, so they're the current theme's.
+  const readTone = (token: string) => getComputedStyle(document.documentElement).getPropertyValue(token);
+  let suggested: TargetColor | null = null;
+
+  fix.addEventListener('click', () => {
+    if (suggested) onFix(suggested);
+  });
+  return {
+    el: row,
+    update(ball, target) {
+      const next = colorHint(ball, target, readTone);
+      if (next === suggested) return;
+      suggested = next;
+      if (!next) {
+        row.replaceChildren();
+        return;
+      }
+      for (const [property, value] of Object.entries(toneVars('--swatch', 'target', next))) {
+        dot.style.setProperty(property, value);
+      }
+      name.textContent = text.targetColor.options[next];
+      row.replaceChildren(before, fix, after);
     },
   };
 }

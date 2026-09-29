@@ -84,6 +84,21 @@ describe('createTheme', () => {
     expect(root.dataset.theme).toBe('light');
   });
 
+  it('tells listeners after each new preference and each system switch', () => {
+    const scheme = fakeColorScheme(false);
+    const root = fakeRoot();
+    const theme = createTheme(memoryStore(), scheme.query, root);
+    const seen: Array<string | undefined> = [];
+    theme.onChange(() => seen.push(root.dataset.theme));
+
+    theme.setPref('dark');
+    scheme.setDark(true);
+    theme.setPref('system');
+    expect(seen).toEqual(['dark', 'dark', 'dark']);
+    scheme.setDark(false);
+    expect(seen).toEqual(['dark', 'dark', 'dark', 'light']);
+  });
+
   it('keeps working when storage throws or is unavailable', () => {
     for (const store of [throwingStore, null]) {
       const root = fakeRoot();

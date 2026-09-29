@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import { config } from './src/config.ts';
 import { copy } from './src/copy.ts';
@@ -54,4 +55,6 @@ export default defineConfig({
     modulePreload: false,
     rolldownOptions: { output: { format: 'iife' } },
   },
+  // Vitest blanks CSS imports, even ?raw ones, unless listed: tests/palette.test.ts reads the tones.
+  test: { css: { include: [/tokens\.css/] } },
 });

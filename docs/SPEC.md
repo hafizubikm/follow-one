@@ -50,7 +50,7 @@ src/
     sfx.ts                Web Audio synthesized effects, unlock on first gesture
   theme/
     theme.ts              light/dark/system + persistence
-    palette.ts            ball and target color options, the pair-distance guard (§16)
+    palette.ts            ball and target color options, the pair-distance guard and the color hint (§16)
   names/
     packs.ts              NamePack type, registry, getPack(id)
     greek.ts
@@ -212,7 +212,7 @@ interface NamePack { id: string; label: string; names: string[] } // ≥ ballCou
 
 **Ball radius** depends on the round's ball count `n` and is fixed for the round: `r = max(ballRadiusMin, ballRadius × √(ballCount / n))`, where `ballRadius = 0.09` is the size at the default 15 balls. Fewer balls are larger, more are smaller, and the balls cover about the same share of the arena (≈12%) at every count; `ballRadiusMin = 0.065` is the smallest readable ball. That gives 10 balls ≈ 0.110, 15 = 0.090, 20 ≈ 0.078, 25 ≈ 0.070, 30 = 0.065. Sizes are normalized, so on screen they follow the arena diameter: 30 balls are ≈ 22 px across on a 343 px phone arena and ≈ 36 px on a 560 px desktop one. Every count spawns with room to spare and keeps a clear gap between neighbours on the ring (§7). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size. Where neighbouring hit areas overlap (small arenas, many balls), a pointer pick goes to the ball whose center is nearest the pointer.
 
-**Ball visual states** (color is never the only cue; `--ball` and `--target` are the colors chosen in Settings, §16):
+**Ball visual states** (color is never the only cue; `--ball` and `--target` are the colors chosen in Settings, §16, and glyphs take that color's ink):
 
 | State | Fill | Glyph | Label | Used in |
 |---|---|---|---|---|
@@ -289,7 +289,7 @@ Never teleport balls, never reposition them per frame, never treat the target di
 
 **Theme**
 - Options `light | dark | system`, default `system`, chosen in Settings (§16). `system` follows `prefers-color-scheme` live through a `matchMedia` listener.
-- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow` (`--on-accent` also colors the glyphs on balls). Every screen, card, button, the HUD, the settings drawer and the arena use them. `--ball` and `--target` follow the colors chosen in Settings.
+- Applied as `data-theme="light|dark"` on `<html>`. All colors are CSS custom properties: `--bg --surface --text --muted --arena --arena-edge --ball --target --accent --focus`, plus supporting tokens `--on-accent --control --border --shadow`. Every screen, card, button, the HUD, the settings drawer and the arena use them. `--ball` and `--target` follow the colors chosen in Settings, each with an `-ink` token for the glyphs on it and an `-edge` token for its outline (§16).
 - Look: modern, minimal and calm with a futuristic, slightly arcade edge; a polished brain-training game, not a generic web app, an admin dashboard or a children's game. Soft neutral background, white/slate surfaces, medium-blue balls and a red target by default; the dark theme is deep navy/charcoal. Rounded corners, light shadows; the arena is the focus. The Play typeface, the circular arena and the big center countdown are the game's identity.
 - Typography: Play (Google Fonts, weights 400 and 700, `display=swap`, loaded without blocking the first paint) everywhere: title, headings, buttons, HUD, names, countdown, stats, settings, result. It is set as `font-family: "Play", <system stack>`, so the system font takes over offline. Hierarchy: title and target name large and bold; the countdown very large and bold; instructions and settings medium; buttons medium and bold; secondary information smaller and regular. No other typeface.
 - Persist under `followone.theme`; wrap all localStorage access in try/catch and fall back to defaults.
@@ -362,6 +362,13 @@ export const config = {
   arenaMaxPx: 560,          // cap on the page column and the arena diameter (§4)
   fullWidthMaxPx: 432,      // full-width column up to this (phones); wider, half the extra goes to side margins (§4)
   minHitPx: 44,             // smallest ball hit area (§5)
+
+  // colors (§16): ΔE is the OKLab distance ×100, deficiencies simulated as Machado et al. (2009) at full severity
+  ballColor: 'blue',        // default Ball color setting
+  targetColor: 'red',       // default Target color setting
+  colorPairFloor: 6,        // min ΔE of every ball/target pair, normal vision and each deficiency, both themes
+  colorComfortNormal: 15,   // comfortable at ≥ this under normal vision
+  colorComfortDeficient: 8, // and ≥ this under each deficiency; below either, Settings shows the color hint
 
   // sound
   collisionClicks: false,   // optional collision clicks (§10)
@@ -494,13 +501,14 @@ A first-time player never needs Settings: the defaults are the standard game (15
 
 **Layout.** Compact, calm and modern, not an admin dashboard: two short sections, one row per setting, the same tokens as the rest of the game.
 - **Game.** Balls: a slider from `ballCountMin` (10) to `ballCountMax` (30) in steps of 1, with its value shown as "{n} balls". Speed: a segmented choice, Slow · Normal · Fast · Extreme. Duration: how long the balls move, a slider from 10 to 60 seconds in steps of 5 (`trackingMsMin`, `trackingMsMax`, `trackingMsStep`), shown as "{seconds} seconds".
-- **Appearance.** Ball color and Target color: rows of swatches. Theme: a segmented choice, Light · Dark · System. Sound: a switch, On · Off.
+- **Appearance.** Ball color and Target color: rows of swatches, the chosen color's name shown beside the label. Theme: a segmented choice, Light · Dark · System. Sound: a switch, On · Off.
 - Every control is native and keyboard-operable: a range input, radio groups for the choices and swatches (arrow keys move within a group), and a `role="switch"` button for sound. A change applies at once (no Save button) and persists.
 
 **Colors.** Ball color: Blue (default), Purple, Green, Orange, Cyan. Target color: Red (default), Pink, Yellow, White. Each swatch is a radio named by its color; the chosen one is marked by a ring and a ✓, not by color alone.
-- Each color has a tone per theme, tuned so every ball and target keeps ≥ 3:1 against the arena and glyphs on it stay readable; a very light tone gets a thin darker rim where it needs one. The tones live in CSS with the other tokens; `theme/palette.ts` lists the options.
-- Every ball/target pair stays distinguishable: the distance between the two tones, under normal vision and simulated protanopia, deuteranopia and tritanopia, never falls below a floor (unit-tested). A pair that is distinguishable but not comfortably so shows a subtle hint under the target swatches, "Hard to tell apart from the balls. Try {color}.", where the named color is a one-tap fix: the most distinct target color for those balls.
-- The chosen colors apply to every ball alike; the target color only shows while the target is highlighted (§2.1) and from `REVEAL` on.
+- Each color has a tone per theme, tuned so every ball and target keeps ≥ 3:1 against the arena and glyphs on it stay readable; a very light tone gets a thin darker rim where it needs one. The tones live in CSS with the other tokens, each color a fill, a glyph ink and an edge (the fill itself, or that rim); `theme/palette.ts` lists the options.
+- Every ball/target pair stays distinguishable: the distance between the two tones, under normal vision and simulated protanopia, deuteranopia and tritanopia, never falls below a floor (unit-tested). The distance is ΔE, the OKLab distance ×100, with each deficiency simulated as Machado et al. (2009) at full severity; the floor is `colorPairFloor` (6) in both themes. A pair is comfortable at ≥ `colorComfortNormal` (15) under normal vision and ≥ `colorComfortDeficient` (8) under each deficiency, the usual data-visualization thresholds; the floor can sit lower because the target never relies on color alone (★, name, pulse).
+- A pair that is distinguishable but not comfortably so shows a subtle hint under the target swatches, "Hard to tell apart from the balls. Try {color}.", where the named color is a one-tap fix: the most distinct target color for those balls, the one that clears the comfort thresholds by the widest margin. Tones differ per theme, so the hint judges the current theme's tones and follows a theme change.
+- The chosen colors apply to every ball alike; the target color only shows while the target is highlighted (§2.1) and from `REVEAL` on. The dot beside the title is a fixed brand mark in the default red, not the target color.
 
 **During a round.** From `TARGET_INTRO` through `REVEAL`, Balls, Speed, Duration, Ball color and Target color are disabled under the note "Some settings are locked until this round ends."; the round keeps the values it was built with. Theme and sound work in every state. In `IDLE` and `RESULT` everything is live: a new ball count, speed or duration applies from the next Start Game or Play Again, and new colors show at once.
 

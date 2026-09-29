@@ -71,6 +71,9 @@ describe('copy matches SPEC §3', () => {
     expect(`${s.balls.label} · ${s.balls.value}`).toBe(row('Balls setting'));
     expect(control(s.speed.label, s.speed.options)).toBe(row('Speed setting'));
     expect(`${s.duration.label} · ${s.duration.value}`).toBe(row('Duration setting'));
+    expect(control(s.ballColor.label, s.ballColor.options)).toBe(row('Ball color setting'));
+    expect(control(s.targetColor.label, s.targetColor.options)).toBe(row('Target color setting'));
+    expect(s.colorHint).toBe(row('Color hint'));
     expect(control(s.theme.label, s.theme.options)).toBe(row('Theme setting'));
     expect(`${s.sound.label} · ${s.sound.on} · ${s.sound.off}`).toBe(row('Sound setting'));
     expect(s.locked).toBe(row('Settings locked'));

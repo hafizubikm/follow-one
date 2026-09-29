@@ -398,3 +398,95 @@ Asked for after phase 9: move ⚙ from the left to the right, and stop the "canv
 
 ### Known issues / notes
 - Pre-existing, not caused by this change: at 320×568, when the "Not quite!" sub-line wraps to an extra line, the result card and the arena don't both fit. The page scrolls 136 px and the arena's top ends up 4 px above the viewport, while §4 wants the arena whole. A build of the previous commit does the same; the column at that width is unchanged (288 px).
+
+## 2026-09-29 — Phase 10: Ball and target colors
+
+### Spec edits
+- §16: ΔE is the OKLab distance ×100, with each deficiency simulated as Machado et al. (2009) at full severity (the model Chrome DevTools emulates). The floor is 6 under normal vision and each deficiency, in both themes. A pair is comfortable at ≥ 15 (normal) and ≥ 8 (each deficiency); otherwise it gets the hint. These are the usual data-visualization thresholds; the floor can sit below them because the target never relies on color alone.
+- §16: the hint follows the current theme, since tones differ per theme. Its one-tap fix is the target color that clears the comfort line by the widest margin. Each tone is a fill, a glyph ink and an edge (the fill itself, or a rim). The chosen color's name shows beside the label.
+- §16: the dot beside the title is a fixed brand mark in the default red, not the target color (your call, asked in this session).
+- §5, §10: glyphs take the chosen color's ink, and `--ball`/`--target` have `-ink` and `-edge` tokens. `--on-accent` no longer colors ball glyphs.
+- §0: `palette.ts` also holds the color hint.
+- §11 new keys: `ballColor: 'blue'`, `targetColor: 'red'`, `colorPairFloor: 6`, `colorComfortNormal: 15`, `colorComfortDeficient: 8`. No existing default changed: Blue and Red keep their exact tones in both themes.
+- CLAUDE.md: `theme/palette.ts` is on the pure list.
+
+### Done
+- `theme/palette.ts` (pure):
+  - the option lists: Blue, Purple, Green, Orange, Cyan / Red, Pink, Yellow, White;
+  - `toneVars`/`colorVars`, which point `--ball`/`--target` and each swatch at a color's tokens;
+  - the pair-distance guard: sRGB → linear → Machado → OKLab, then `pairDistances` and `comfortMargin`;
+  - `colorHint`, which reads the tones through an injected reader.
+- Tones in `styles/tokens.css`, one set per theme, as `--{kind}-{id}`, `-ink` and `-edge`.
+  - Light theme: orange, cyan, yellow and white are rimmed; the rim is a 2 px inset ring (`--edge-w`). The dark theme needs no rims.
+  - `main.ts` sets the chosen colors as inline custom properties on `<html>`, at startup and on every change.
+- Arena:
+  - Every ball draws its edge. The target's fill and edge both fade into the ball's.
+  - Glyphs use the tone's ink.
+  - The target's pulse takes the edge color, so a white or yellow target's halo shows on the light arena.
+- Settings: `ballColor` and `targetColor` are validated on their own (only listed names), persisted with the rest, and locked with Balls, Speed and Duration.
+- Drawer: Ball color and Target color rows of swatches (`swatchChoice`, a native radio group: arrow keys, ring + ✓ + name).
+  - The hint sits under the target swatches as a polite status region. Its color name is a button (a mini swatch plus the name), described by the hint sentence.
+  - The fix moves focus to the new swatch. The hint re-checks on any color change and on theme changes (`ThemeController.onChange`, new).
+- Copy: the three §3 rows (`ballColor`, `targetColor`, `colorHint`) and a `chosen` ✓ glyph.
+- Tests (222, was 188): `tests/palette.test.ts` reads `tokens.css` as each theme resolves it (the dark block over the light one, `var()` resolved).
+  - It checks that every option defines fill, ink and edge in both themes, and that each edge is ≥ 3:1 against the arena.
+  - A rim must be darker than its fill, and only where the fill alone is below 3:1. Ink must be ≥ 3:1 on its fill.
+  - Every pair must be ≥ the floor under all four visions in both themes. The defaults must be comfortable, and every hint's fix must clear it.
+  - Math: Ottosson's reference OKLab value for red, grays unchanged by every simulation, each deficiency's own confusion pair, and the default pair's four distances. Those match an independent implementation of the same models: 33.6 / 24.7 / 30.9 / 33.3.
+  - `colorHint` logic on made-up tones.
+  - Settings: color defaults, validation, persistence. Copy rows. Theme listeners.
+  - Mutation check: a too-dark green, a missing white rim, an unneeded blue rim, a rim leaking from the light block into the dark one, and unreadable orange ink each fail the suite.
+- `vite.config.ts`: `test.css.include` for `tokens.css`, because Vitest blanks CSS imports (even `?raw`) otherwise. The build ignores it.
+
+The hard pairs with the shipped tones (everything else is comfortable):
+
+| Theme | Pair | Limiting distance | Fix |
+|---|---|---|---|
+| Light | green/red | deuteranopia 6.6 | White |
+| Light | orange/red | normal 12.8 | White |
+| Dark | orange/red | normal 10.6, deuteranopia 7.3 | White |
+
+### Verified in the browser (headless Chrome over the DevTools protocol; the Browser pane was hidden)
+- Drawer at 1280×800, light and dark:
+  - A first visit has Blue/Red, no hint and nothing stored.
+  - Orange balls → "Hard to tell apart from the balls. Try White." Tapping White sets the target to White, clears the hint, focuses the White swatch and stores the choice.
+  - Green/red shows the hint in light and not in dark; switching the theme re-checks it.
+  - Arrow keys move through a swatch row and wrap. The focus ring sits outside the chosen ring.
+- 320×568: no horizontal overflow in the page or the drawer, each swatch row on one line, and the hint wraps cleanly.
+- Chrome's own vision-deficiency emulation (same matrices) on the swatches: under deuteranopia green and red become nearly the same khaki, which is the pair the hint flags; under protanopia red darkens enough to stay apart.
+- Full rounds:
+  - 1280×800 light, orange/white, 15 balls, wrong pick.
+  - 390×844 dark, cyan/yellow, 30 balls, right pick.
+  - 1280×800 light, Blue/Red, right pick.
+  - In each:
+    - The intro target shows its fill, rim, ★ in its ink, name and halo.
+    - Mid-round, the drawer shows the note and disabled color groups; trusted clicks on a swatch and on the hint's button change nothing.
+    - Mid-fade, fill and rim blend together.
+    - After the fade and in selection, every ball's markup and computed fill, rim, glyph ink, z-index and pulse are identical, with no look attribute.
+    - The reveal shows ✓/★/✕ in the right inks.
+    - In RESULT the colors are live again, and switching the target to Pink recolored the revealed target at once.
+    - No overflow, no console errors.
+- Default Blue/Red renders as before: fills #2f6bd8/#e0533b, a rim equal to the fill (invisible), white glyph ink, and an unchanged title dot. With a Yellow or Pink target the dot stays red.
+- Production build from `file://` and from `http://127.0.0.1:4174/dist/`: one deferred classic script. Stored orange/red is restored, the hint shows, the balls are orange, and the dot stays red.
+- Accessibility tree: groups "Ball color" and "Target color", radios named by color with their checked state, a polite status region, and the "White" button described by the hint sentence.
+- Reduced motion: swatch transitions 0 s.
+
+### SPEC §14 items touched
+- Verified:
+  - Ball color (5) and Target color (4) work with pointer and keyboard.
+  - All seven settings persist; a first visit gets Blue and Red.
+  - Colors are locked with the note from TARGET_INTRO through REVEAL, and live in RESULT.
+  - A hard-to-tell pair shows the hint and its one-tap fix; no pair falls below the floor (unit test, both themes, four visions).
+  - The target color never shows between the fade and REVEAL: DOM and computed-style check after the fade and in selection, at 15 and 30 balls. The title dot no longer uses it.
+  - Every color state keeps a glyph or label.
+  - Focus is visible on swatches; reduced motion removes their transition.
+  - No horizontal scroll at 1280, 390, 375 and 320 px.
+  - All tests pass.
+- Not re-walked this phase: the rest of §14 is Phase 11 (v1.1 acceptance).
+
+### Known issues / notes
+- `styles/controls.css` is 319 lines, just over the ~300 guideline, about the size of `screens.css` (316).
+- Dark-theme orange is a light orange (#ffa54b). A deeper orange sits too close to the dark default red (#ff7a5e, a light coral) under deuteranopia to clear the floor. The pair still gets the hint.
+- Pre-existing, out of scope: a module-level style array in `src/debug.ts` survives tree-shaking in the production bundle (about 200 bytes, never used).
+- The fix button's accessible description reads "…Try White ." with a space before the period; that's Chrome's text computation around the inline-flex button, and harmless.
+- The 320×568 wrong-answer layout issue from the layout entry is unchanged.

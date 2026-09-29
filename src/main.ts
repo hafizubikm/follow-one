@@ -23,7 +23,8 @@ import { createHeader } from './render/header.ts';
 import { createHud } from './render/hud.ts';
 import { createResultCard, createStartScreen, createStatsStrip, setScreen, type Screen } from './render/screens.ts';
 import { createSettingsPanel } from './render/settingsPanel.ts';
-import { createSettings, roundSetup, settingsLocked } from './settings/settings.ts';
+import { createSettings, roundSetup, settingsLocked, type Settings } from './settings/settings.ts';
+import { colorVars } from './theme/palette.ts';
 import { createTheme, systemDarkQuery } from './theme/theme.ts';
 import type { KeyValueStore } from './util/storage.ts';
 
@@ -39,6 +40,15 @@ const store = localStore();
 const theme = createTheme(store, window.matchMedia(systemDarkQuery), document.documentElement);
 const sfx = createSfx(store);
 const settings = createSettings(store);
+
+// Every ball takes --ball and the target --target (SPEC §16). Changes are only possible while no round
+// is locked, and show at once.
+const applyColors = ({ ballColor, targetColor }: Settings) => {
+  for (const [property, value] of Object.entries(colorVars(ballColor, targetColor))) {
+    document.documentElement.style.setProperty(property, value);
+  }
+};
+applyColors(settings.current);
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 const reducedMotion = () => reducedMotionQuery.matches;
 
@@ -100,7 +110,10 @@ const panel = createSettingsPanel({
   theme,
   sfx,
   opener: header.settingsButton,
-  onChange: (current) => startScreen.setMeta(current),
+  onChange: (current) => {
+    startScreen.setMeta(current);
+    applyColors(current);
+  },
 });
 
 app.append(header.el, stage, startScreen.el);

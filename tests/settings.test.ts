@@ -17,8 +17,14 @@ const key = config.storageKeys.settings;
 const stored = (value: unknown) => memoryStore({ [key]: JSON.stringify(value) });
 
 describe('defaults (SPEC §16)', () => {
-  it('are the standard game: 15 balls at Normal speed for 15 seconds', () => {
-    expect(defaultSettings).toEqual({ ballCount: 15, speed: 'normal', trackingMs: 15_000 });
+  it('are the standard game: 15 balls at Normal speed for 15 seconds, Blue balls, a Red target', () => {
+    expect(defaultSettings).toEqual({
+      ballCount: 15,
+      speed: 'normal',
+      trackingMs: 15_000,
+      ballColor: 'blue',
+      targetColor: 'red',
+    });
     expect(createSettings(memoryStore()).current).toEqual(defaultSettings);
   });
 
@@ -52,15 +58,20 @@ describe('validation', () => {
   });
 
   it('restores stored values', () => {
-    expect(parseSettings(JSON.stringify({ ballCount: 24, speed: 'extreme', trackingMs: 45_000 }))).toEqual({
-      ballCount: 24,
-      speed: 'extreme',
-      trackingMs: 45_000,
-    });
+    const stored = { ballCount: 24, speed: 'extreme', trackingMs: 45_000, ballColor: 'cyan', targetColor: 'white' };
+    expect(parseSettings(JSON.stringify(stored))).toEqual(stored);
+  });
+
+  it('accepts only the listed color names (SPEC §16)', () => {
+    expect(parseSettings(JSON.stringify({ ballColor: 'teal', targetColor: 'Red' }))).toEqual(defaultSettings);
+    expect(parseSettings(JSON.stringify({ ballColor: 'red', targetColor: 'blue' }))).toEqual(defaultSettings);
+    expect(parseSettings(JSON.stringify({ ballColor: 7, targetColor: null }))).toEqual(defaultSettings);
+    expect(parseSettings(JSON.stringify({ ballColor: 'constructor' }))).toEqual(defaultSettings);
   });
 
   it('checks each field on its own, so one bad value never resets the others', () => {
     expect(parseSettings(JSON.stringify({ ballCount: 'twenty', speed: 'fast', trackingMs: 20_000 }))).toEqual({
+      ...defaultSettings,
       ballCount: 15,
       speed: 'fast',
       trackingMs: 20_000,
@@ -68,6 +79,16 @@ describe('validation', () => {
     expect(parseSettings(JSON.stringify({ ballCount: 12, speed: 'ludicrous' }))).toEqual({ ...defaultSettings, ballCount: 12 });
     expect(parseSettings(JSON.stringify({ ballCount: 99, trackingMs: '30s' }))).toEqual({ ...defaultSettings, ballCount: 30 });
     expect(parseSettings(JSON.stringify({ speed: 'toString' }))).toEqual(defaultSettings);
+    expect(parseSettings(JSON.stringify({ ballCount: 12, ballColor: 'magenta', targetColor: 'yellow' }))).toEqual({
+      ...defaultSettings,
+      ballCount: 12,
+      targetColor: 'yellow',
+    });
+    expect(parseSettings(JSON.stringify({ speed: 'fast', ballColor: 'green', targetColor: 'gold' }))).toEqual({
+      ...defaultSettings,
+      speed: 'fast',
+      ballColor: 'green',
+    });
   });
 
   it('falls back to the defaults for missing or unreadable data', () => {
@@ -79,11 +100,8 @@ describe('validation', () => {
 
 describe('createSettings (persistence)', () => {
   it('restores what was stored', () => {
-    expect(createSettings(stored({ ballCount: 21, speed: 'slow', trackingMs: 30_000 })).current).toEqual({
-      ballCount: 21,
-      speed: 'slow',
-      trackingMs: 30_000,
-    });
+    const saved = { ballCount: 21, speed: 'slow', trackingMs: 30_000, ballColor: 'purple', targetColor: 'pink' };
+    expect(createSettings(stored(saved)).current).toEqual(saved);
   });
 
   it('applies a change, validated, and persists the whole set as JSON', () => {
@@ -92,7 +110,8 @@ describe('createSettings (persistence)', () => {
     expect(settings.update({ ballCount: 27 })).toEqual({ ...defaultSettings, ballCount: 27 });
     settings.update({ speed: 'fast' });
     settings.update({ trackingMs: 25_000 });
-    const expected = { ballCount: 27, speed: 'fast', trackingMs: 25_000 };
+    settings.update({ ballColor: 'orange', targetColor: 'white' });
+    const expected = { ballCount: 27, speed: 'fast', trackingMs: 25_000, ballColor: 'orange', targetColor: 'white' };
     expect(settings.current).toEqual(expected);
     expect(JSON.parse(store.data[key])).toEqual(expected);
 
@@ -112,7 +131,7 @@ describe('createSettings (persistence)', () => {
 
 describe('rounds and locking', () => {
   it('turns settings into a round setup', () => {
-    expect(roundSetup({ ballCount: 30, speed: 'extreme', trackingMs: 60_000 })).toEqual({
+    expect(roundSetup({ ...defaultSettings, ballCount: 30, speed: 'extreme', trackingMs: 60_000 })).toEqual({
       ballCount: 30,
       speedFactor: 1.6,
       trackingMs: 60_000,

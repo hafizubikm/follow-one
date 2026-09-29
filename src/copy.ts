@@ -25,7 +25,8 @@ export const copy = {
   /** Shown large in the arena after the countdown numerals (SPEC §5). */
   countdown: { go: 'GO!' },
 
-  glyphs: { target: '★', correct: '✓', wrong: '✕' },
+  /** On balls (SPEC §5); `chosen` marks the chosen color swatch (SPEC §16). */
+  glyphs: { target: '★', correct: '✓', wrong: '✕', chosen: '✓' },
 
   /** A ball's accessible name while it can be picked (SPEC §8). */
   ball: 'Ball {slot}',
@@ -44,6 +45,13 @@ export const copy = {
     balls: { label: 'Balls', value: '{n} balls' },
     speed: { label: 'Speed', options: { slow: 'Slow', normal: 'Normal', fast: 'Fast', extreme: 'Extreme' } },
     duration: { label: 'Duration', value: '{seconds} seconds' },
+    ballColor: {
+      label: 'Ball color',
+      options: { blue: 'Blue', purple: 'Purple', green: 'Green', orange: 'Orange', cyan: 'Cyan' },
+    },
+    targetColor: { label: 'Target color', options: { red: 'Red', pink: 'Pink', yellow: 'Yellow', white: 'White' } },
+    // {color}: the suggested target color's name, shown as a button that picks it.
+    colorHint: 'Hard to tell apart from the balls. Try {color}.',
     theme: { label: 'Theme', options: { light: 'Light', dark: 'Dark', system: 'System' } },
     sound: { label: 'Sound', on: 'On', off: 'Off' },
     locked: 'Some settings are locked until this round ends.',

@@ -5,5 +5,14 @@
     "lib": ["ES2022"],
     "types": []
   },
-  "include": ["src/config.ts", "src/copy.ts", "src/physics", "src/game", "src/names", "src/settings", "src/util"]
+  "include": [
+    "src/config.ts",
+    "src/copy.ts",
+    "src/physics",
+    "src/game",
+    "src/names",
+    "src/settings",
+    "src/theme/palette.ts",
+    "src/util"
+  ]
 }

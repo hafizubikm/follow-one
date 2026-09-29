@@ -70,9 +70,12 @@
   will-change: transform;
 }
 
+/* --edge is the tone's outline: the fill itself, or a darker rim on a light tone (SPEC §16). */
 .ball-body {
   --shade: inset 0 calc(var(--ball-d) * -0.06) 0 rgb(0 0 0 / 0.12);
   --lift: 0 1px 3px rgb(var(--shadow) / 0.18);
+  --edge: var(--ball-edge);
+  --rim: inset 0 0 0 var(--edge-w) var(--edge);
 
   display: grid;
   place-items: center;
@@ -80,7 +83,7 @@
   height: var(--ball-d);
   border-radius: 50%;
   background: var(--ball);
-  box-shadow: var(--shade), var(--lift);
+  box-shadow: var(--shade), var(--rim), var(--lift);
   transition: transform 120ms ease;
 }
 
@@ -109,7 +112,7 @@
 }
 
 .ball-glyph {
-  color: var(--on-accent);
+  color: var(--ball-ink);
   font-size: calc(var(--ball-d) * 0.56);
   font-weight: 700;
   line-height: 1;
@@ -162,8 +165,10 @@
   z-index: 1;
 }
 
-/* target: coral, ★, name, pulse. --strength fades all of it to neutral (SPEC §2.1). */
+/* target: the target color, ★, name, pulse. --strength fades all of it to neutral (SPEC §2.1). */
 .ball[data-look='target'] .ball-body {
+  --edge: color-mix(in oklab, var(--target-edge) calc(var(--strength) * 100%), var(--ball-edge));
+
   background: color-mix(in oklab, var(--target) calc(var(--strength) * 100%), var(--ball));
 }
 
@@ -171,13 +176,19 @@
   opacity: var(--strength);
 }
 
-/* picked (checking) and a wrong pick keep the ball color and get a 3 px ring in --text. */
-.ball:is([data-look='picked'], [data-look='revealed-wrong-pick']) .ball-body {
-  box-shadow: var(--shade), 0 0 0 3px var(--text), var(--lift);
+.ball:is([data-look='target'], [data-look='revealed-correct'], [data-look='revealed-target']) .ball-glyph {
+  color: var(--target-ink);
 }
 
-/* The real target: coral with ✓ (you found it) or ★ (you didn't). */
+/* picked (checking) and a wrong pick keep the ball color and get a 3 px ring in --text. */
+.ball:is([data-look='picked'], [data-look='revealed-wrong-pick']) .ball-body {
+  box-shadow: var(--shade), var(--rim), 0 0 0 3px var(--text), var(--lift);
+}
+
+/* The real target: the target color with ✓ (you found it) or ★ (you didn't). */
 .ball:is([data-look='revealed-correct'], [data-look='revealed-target']) .ball-body {
+  --edge: var(--target-edge);
+
   background: var(--target);
 }
 
@@ -204,12 +215,13 @@
   animation: target-pulse 1.4s ease-out infinite;
 }
 
+/* The pulse takes the edge, so a white or yellow target's halo still shows on the light arena. */
 @keyframes target-pulse {
   from {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--target) 60%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--target-edge) 60%, transparent);
   }
   to {
-    box-shadow: 0 0 0 calc(var(--ball-d) * 0.5) color-mix(in srgb, var(--target) 0%, transparent);
+    box-shadow: 0 0 0 calc(var(--ball-d) * 0.5) color-mix(in srgb, var(--target-edge) 0%, transparent);
   }
 }
 
@@ -225,7 +237,7 @@
   /* The pulse is decorative; a still halo keeps the cue. */
   .ball[data-look='target']::before {
     animation: none;
-    box-shadow: 0 0 0 calc(var(--ball-d) * 0.16) color-mix(in srgb, var(--target) 35%, transparent);
+    box-shadow: 0 0 0 calc(var(--ball-d) * 0.16) color-mix(in srgb, var(--target-edge) 35%, transparent);
   }
 
   .ball[data-look^='revealed'] .ball-body {

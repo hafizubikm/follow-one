@@ -25,7 +25,7 @@ Phase 1 creates these scripts. Package manager is npm.
 - Vite + TypeScript (`strict: true`, no `any`), ES modules, no UI framework, no runtime dependencies. Plain CSS with custom properties; no CSS framework.
 - Module layout follows SPEC §0, plus `src/copy.ts` holding the SPEC §3 copy table. No user-facing strings anywhere else.
 - One concern per file; no file over ~300 lines.
-- `physics/`, `game/`, `names/`, `settings/` and `util/` are pure: no DOM, no `window`, importable in Vitest.
+- `physics/`, `game/`, `names/`, `settings/`, `util/` and `theme/palette.ts` are pure: no DOM, no `window`, importable in Vitest.
 - All positions and radii are normalized arena units (center 0,0, radius 1). Only `render/` converts to pixels.
 - One requestAnimationFrame loop and one simulation clock drive physics, the countdown timer and every phase timer. No `setTimeout`/`setInterval` for game timing.
 - Comments only where the *why* isn't obvious. No README padding, no changelog prose.
