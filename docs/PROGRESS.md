@@ -613,3 +613,30 @@ Code
 - 60 fps and sound are verified in headless Chrome (frame timing, CPU throttling, scheduled oscillators), not on a physical phone or by ear.
 - Over the ~300-line guideline: `styles/controls.css` (319), `tests/view.test.ts` (372), `tests/session.test.ts` (311).
 - SPEC §9's optional best-score persistence is still not implemented. It needs a decision on session vs all-time "Best".
+
+## 2026-09-29 — Favicon: the brand mark
+
+Asked for after phase 11, from a screenshot of the dot beside the title: "Add a favicon like this."
+
+### Spec edits
+- §16: the favicon is the same mark as the title's dot, an inline SVG in `index.html` (no image file) that takes the dark theme's red when the system is dark.
+
+### Done
+- `index.html`: the empty `data:,` icon becomes an inline SVG of `.brand::before`, a dot in a 22% halo (6 and 9 units in an 18-unit square, as 12 px + 3 px on the page).
+  - Its fill is `--target-red`'s light tone (#e0533b), or its dark one (#ff7a5e) under `prefers-color-scheme: dark`.
+  - The icon sits in the browser's tab strip, so it follows the system's appearance rather than the in-game Theme setting.
+  - Being inline, it adds no file or request and works from `file://` and any subpath.
+- Tests (223, was 222): `tests/palette.test.ts` checks the favicon's two tones against `--target-red` in each theme of `tokens.css`. It fails when either drifts (confirmed by nudging the dark tone).
+
+### Verified in the browser (headless Chrome over the DevTools protocol; the dev server in the Browser pane)
+- Production build from `file://`:
+  - one icon link, byte-identical to the source; the JS and CSS bundles are unchanged;
+  - Chrome registers it as the tab's favicon (`faviconUrl` in `/json/list`) and it decodes, with no console errors.
+- Rendered pixels match: light dot rgb(224, 83, 59) with halo rgb(248, 217, 212) on white; dark dot rgb(255, 122, 94) with halo rgb(97, 69, 66) on #35363a, each the expected 22% blend. The title's brand mark computes the same fills in each theme.
+- Dev server: the same icon, and it decodes.
+
+### SPEC §14 items touched
+- Code: all Vitest tests pass (223).
+
+### Known issues / notes
+- SVG favicons need Safari 26 or later (Chrome and Firefox have supported them for years); older Safari shows no icon, since a PNG fallback would be an image file.

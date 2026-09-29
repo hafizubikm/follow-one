@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import tokens from '../src/styles/tokens.css?raw';
+import indexHtml from '../index.html?raw';
 import { config } from '../src/config.ts';
 import { copy } from '../src/copy.ts';
 import {
@@ -235,5 +236,16 @@ describe.each(['light', 'dark'] as const)('the %s tones in tokens.css', (theme) 
         if (suggestion) expect(colorHint(ball, suggestion, read), `${ball}/${target} → ${suggestion}`).toBeNull();
       }
     }
+  });
+});
+
+// The favicon can't read custom properties, so it carries copies of the brand mark's tones.
+describe('the favicon', () => {
+  const href = /<link\s+rel="icon"\s+href="data:image\/svg\+xml,([^"]*)"/.exec(indexHtml)?.[1] ?? '';
+  const svg = decodeURIComponent(href);
+
+  it('takes --target-red’s light tone, and its dark one when the system is dark', () => {
+    expect(svg).toContain(`circle{fill:${themes.light('--target-red')}}`);
+    expect(svg).toContain(`@media (prefers-color-scheme:dark){circle{fill:${themes.dark('--target-red')}}}`);
   });
 });

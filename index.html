@@ -20,7 +20,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="__APP_DESCRIPTION__" />
     <title>__APP_TITLE__</title>
-    <link rel="icon" href="data:," />
+    <!-- The title's brand mark (.brand::before): the dot in its 22% halo, in --target-red's light tone, or
+         its dark one when the system is dark. Inline, so there's no image file and it works from file://.
+         tests/palette.test.ts keeps the tones in step with tokens.css. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'><style>circle{fill:%23e0533b}@media (prefers-color-scheme:dark){circle{fill:%23ff7a5e}}</style><circle cx='9' cy='9' r='9' fill-opacity='.22'/><circle cx='9' cy='9' r='6'/></svg>"
+    />
     <!-- Play (SPEC §10). Loaded without blocking the first paint, so a slow or unreachable font host
          can't hold up the game; the system font shows until it arrives. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
