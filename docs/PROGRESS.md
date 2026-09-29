@@ -490,3 +490,126 @@ The hard pairs with the shipped tones (everything else is comfortable):
 - Pre-existing, out of scope: a module-level style array in `src/debug.ts` survives tree-shaking in the production bundle (about 200 bytes, never used).
 - The fix button's accessible description reads "…Try White ." with a space before the period; that's Chrome's text computation around the inline-flex button, and harmless.
 - The 320×568 wrong-answer layout issue from the layout entry is unchanged.
+
+## 2026-09-29 — Phase 11: Acceptance (v1.1)
+
+### How it was walked
+All of this ran in headless Chrome over the DevTools protocol; the Browser pane was hidden. The scratch scripts are not in the repo.
+- **Round matrix.** 48 full rounds: 10, 15 and 30 balls × Slow, Normal, Fast, Extreme, in four configurations (light 1280×800, dark 1440×900, light 375×812, dark 390×844). It ran twice, on the dev server and on the production build from `/dist/`; every check passed both times.
+  - Each configuration starts from a first visit and plays its 12 rounds in one session, so score, streak and accuracy accumulate.
+  - Settings change in RESULT through the real drawer controls: keys on the sliders, clicks on segments and swatches.
+  - Colors rotate so every ball and target color appears, both hint pairs included. Picks alternate between keyboard and pointer.
+  - An in-page recorder logs the HUD, the watermark, the cursor flag, the settings lock and every ball's position each frame.
+  - Timing is judged on the game's own clock, rebuilt from rAF timestamps with the 50 ms clamp. A stalled frame pauses the round, so wall-clock timing would misread it.
+- **Layout sweep.** 25 viewport sizes, from 320×568 to 1920×1080, including real phone-browser heights (375×548, 360×560, 390×664, 414×620) and landscape phones. It checks start, intro, selection and result, with the result also re-laid-out using the longest possible sub-line. It ran on the production build, plus `file://` at two sizes.
+- **Targeted checks.** The drawer and every control by pointer and keyboard; persistence; hint; watermark paint order; typography online and with the font host blocked; sound; keyboard-only play; live region; reduced motion; hidden tab; resize and rotate; frame rate.
+
+### Fixed
+- **§4 result card on short portrait screens** (the known 320×568 bug, and worse on real phone browsers).
+  - The card was 256 px everywhere. Under a whole arena there is only 252 px at 320×568, 204 at 360×560 and 177 at 375×548 (iPhone SE Safari with its bars).
+  - At `(max-width: 480px) and (max-height: 740px) and (orientation: portrait)` the card now puts Play Again (still ≥ 44 px) beside the headline, and the stats become one row of label-over-value columns. The card is 153–174 px.
+  - Arena top after the scroll: 78 px at 320×568, 24 at 375×548, 51 at 360×560. Taller phones keep the stacked card.
+- **Landscape card at the width boundary.** The landscape card also applies to any landscape viewport ≤ 520 px tall, a union with the old `min-width: 481px` rule. The portrait rules are portrait-only, so 480×320 no longer mixes the two.
+- **`styles/result.css`.** The result card's styles moved out of `screens.css`, which would have passed ~360 lines. It's a pure move: 47 rules checked identical by a parser, cascade unchanged.
+- **`debug.ts`.** The panel's style array moved into `startDebug`. As a module-level `[...].join()` it survived tree-shaking, so production now carries no debug code (34.57 → 34.31 kB). `?debug=1` still works in dev.
+
+### Spec edits
+- §0: the result card has its own stylesheet.
+- §4: the card is compact wherever it has to be (landscape phones; short portrait screens).
+
+### SPEC §14 checklist
+Flow
+- [x] Start screen works; Start Game begins a round. Pointer and keyboard (Tab → ⚙ → Start Game → Enter), dev and production, all four configurations.
+- [x] Target shown highlighted and named before the countdown. Every matrix round: one look, ★, the name on screen, the HUD intro line.
+- [x] 3-2-1-GO in the arena; motion starts on GO. Watermark sequence in every round; balls still until GO (frame by frame).
+- [x] Timer counts down from the round's duration to 1 and freezes at 0: 15 → 1 in each first-visit round, 10 → 1 in the others, then 0. The game clock measured intro 2 500, countdown 3 000 and tracking 15 000 / 10 000 ms, each within one frame.
+- [x] Glide to the ring; slot numbers; exactly one pick.
+  - Every round: ring positions within 1e-3 of the §7 geometry, neighbours never overlapping, slot numbers 1..n on screen.
+  - DOM and tab order are Ball 1..n, and a second pick is ignored.
+- [x] Input locks after the pick; "Checking..."; reveal after the delay. `aria-disabled`, focus kept on the picked ball, HUD sequence.
+- [x] Correct and incorrect results display with the right copy and highlights. Headline, sub-line with names and slots, ✓/★/✕ and names, in every round.
+- [x] Score, streak, best, accuracy and round update correctly: checked against an independent tally after each of the 48 rounds.
+- [x] Play Again starts a fresh round with a new random target, in all four sessions.
+
+Fairness
+- [x] The highlight is fully gone by 2.0 s and never returns before REVEAL: frame by frame on the game clock, every round (full before 1.5 s, fading between, no look after), plus the unit tests.
+- [x] Nothing distinguishes the target during motion, returning or selection.
+  - Markup and computed fill, rim, ink, size, z-index and pulse are identical across balls after the fade and in selection.
+  - The recorded look stays null through the glide.
+- [x] Spawn positions are never ring slots, and slots come only at the freeze: unit tests, and ring labels appear only in selection.
+- [x] `physics/` has no reference to the target: source-scan test.
+- [x] Everything is re-randomized every round: 15 000-round unit tests, and targets, names and slots varied across the 48 rounds.
+- [x] Settings can't change mid-round, and the target color never shows between the fade and REVEAL.
+  - The settings are locked from TARGET_INTRO to RESULT in every round, with the note.
+  - Mid-round, the Balls, Speed, Duration and color controls are disabled while Theme and Sound work.
+  - Trusted clicks on a swatch and on the hint's button change nothing.
+
+Physics
+- [x] Balls move, bounce, collide and push. Each ball's path is 97–101% of what its speed predicts, and every ball roams ≥ 0.48 of the radius, in all 48 rounds.
+- [x] No escape, sticking, dead stop or runaway at any count or speed: all 12 cells in both themes and both sizes.
+  - Max |p| + r − 1 ≤ 2.2e-5; overlap ≤ 0.0002.
+  - No 0.2 s stretch with under 2% of the expected path, and speeds held to the preset.
+  - Plus the unit tests at 10/30 × Slow/Extreme.
+- [x] Smooth ~60 fps, 30 balls included.
+  - 30 balls at Extreme: 60 fps with p95 16.8 ms at 390×844, with and without 4× CPU throttling, and 16.7 ms at 1280×800.
+  - Every matrix round rendered 599 frames per 10 s. This is headless, not a physical phone.
+- [x] Hiding the tab pauses the round; rotating or resizing rescales it.
+  - With another tab in front for 3 s, the watermark held at 29 with no ball moving, then the round resumed (28).
+  - Mid-round, 1280×800 → 600×900 → 375×812 → 812×375 → 390×844 took the arena 560 → 500 → 343 → 215 → 358 px; every ball stayed inside, with no overflow.
+
+Settings
+- [x] ⚙ at the right end opens the drawer from the right, and ✕, Esc and the backdrop close it.
+  - At 1280×800, 375×812 and 320×568 the drawer slides in from the right edge (1280 → 920 px) as a modal, and focus goes to ✕. ✕, the backdrop and Esc each close it, with focus back on ⚙.
+  - There is no horizontal scroll with the drawer open.
+- [x] All seven controls work with pointer and keyboard.
+  - Keyboard: Balls End + ← (29), Duration →×5 (40 s), Speed →→ (Extreme), Ball color ← (Cyan), Target color →→ (Yellow), Theme ← (Dark), Sound Space and Enter.
+  - Pointer: clicks on both slider tracks (10, 60), the segments, the swatches and the switch.
+  - Tab order: Balls → Speed → Duration → Ball color → Target color → Theme → Sound, with a visible focus ring.
+- [x] All seven settings persist, and a first visit gets 15 · Normal · 15 s · Blue · Red · System · On.
+  - 22 balls, Fast, 30 s, Purple, White, Dark and Off all survived a reload.
+  - The first-visit defaults were checked in each of the four fresh profiles, with nothing stored.
+  - System follows the OS live.
+- [x] Locked from TARGET_INTRO through REVEAL, with the note, and applied from the next round; theme and sound always work. Lock timeline in every round; count, speed, duration and colors changed in RESULT showed up in the next round.
+- [x] Balls resize with the count; every count spawns, rings without overlaps, numbers 1..n and uses unique names. Ball size = r(n) × arena at 10, 15 and 30 (unit tests cover all 21 counts), ring gaps positive, names from the first n.
+- [x] A hard pair shows the hint and its one-tap fix, and no pair is indistinguishable. Orange/red in both themes and green/red in light only; the fix picks White and moves focus there. The floor is unit-tested (phase 10).
+
+Arena countdown, cursor, typography
+- [x] 3·2·1 and GO! strong, the seconds faint; centered behind the balls, never blocking a pick; 0 at the freeze, then gone.
+  - Strong and faint are judged by position relative to GO!, since the seconds also pass 3, 2, 1.
+  - The numeral is centered to the pixel (0, 0) and is the arena's first child, with `pointer-events: none` and `aria-hidden`.
+  - Hit-testing in paint order (including `pointer-events: none` elements), the watermark was topmost at none of the 30 ball centers, 3 of them inside the numeral's box. It is empty in selection.
+- [x] The cursor hides over the arena only while tracking. It is hidden from GO! to the freeze to within one frame, `cursor: none` inside the arena and not outside it, and a pointer on the balls in selection.
+- [x] Play is the typeface everywhere, with a clear hierarchy, and the system font takes over offline.
+  - Play 400 and 700 load and come first everywhere. Sizes run title 42 > HUD and tagline 18 > meta 13; buttons, labels and the watermark are bold, secondary text regular.
+  - With the font host blocked, no Play face loads, first paint is at 40 ms, and a round runs.
+
+Accessibility
+- [x] Light, dark and system work and persist, with no flash: the inline theme script precedes the stylesheet in the build.
+- [x] Sound works and persists, and unlocks on the first gesture.
+  - No audio context exists before the first gesture; the Start Game key press creates one and it runs.
+  - Cues landed on the round's beats: 0, 2.4, 3.4, 4.4, 5.5, 10.4–14.4 and 15.4 s. That's measured from when the harness saw the key press; the nominal beats are 0, 2.5 … 15.5.
+  - Switched off by keyboard, a whole round scheduled 0 oscillators, and "off" survived a reload.
+- [x] Keyboard-only play works with visible focus. Tab → ⚙ → Start Game; Enter; Tab to Ball 1; arrows, Home and End; Enter picks; Play Again is focused; Enter starts the next round. Focus rings are solid on each.
+- [x] HUD messages go through the live region: `aria-live="polite"`, 9 writes for 9 instructions, no repeats.
+- [x] Reduced motion. Zero running animations or transitions over a whole 30-ball round; the drawer appears at once; glide plus settle is 900 ms; the round plays to RESULT.
+- [x] Every color state has a glyph or label: ★ with the name in the intro; ✓/★/✕ with names at the reveal; the swatches' ring, ✓ and name.
+
+Layout
+- [x] No horizontal scrolling at any of the 25 sizes, in any state, drawer included.
+- [x] Balls tappable on mobile. Hit areas are 44 px at every size. A tap on Ball 5's center picks Ball 5 everywhere, including 480×320 and 568×320 where ring neighbours are 15 px apart.
+- [x] One centered column, full width on phones, capped at 560 px, with ⚙ at its right end. Columns 288–560 px, the arena centered, ⚙ flush with the column's right edge.
+
+Code
+- [x] All Vitest tests pass (222).
+- [x] Modules as in §0, no giant file, no tunables outside `config.ts`.
+  - Every `src/*.ts` matches the §0 tree.
+  - The largest source file is `view.ts` at 253 lines.
+  - Literals outside config are unit conversions, formula constants, sound recipes (§10), label placement and decorative animation timing, as in phase 7's audit.
+
+### Known issues / notes
+- Portrait viewports under 520 px tall (320×460, a 400×400 window): the arena is height-limited there, so even the compact card can't fit under it. The page shows the whole card and clips the arena's top by up to 26 px. The one phone with such a viewport, the first iPhone SE's Safari, has no container queries and gets the fallback layout, which leaves more room; that wasn't measured.
+- The first Start click stalls headless Chrome for about 250 ms while the AudioContext starts; the round pauses through it rather than skipping time.
+- Tab past the last drawer control lands on the `<dialog>` itself (with a focus ring), then ✕. That's Chrome's handling of a scrollable modal, and focus never leaves the drawer.
+- 60 fps and sound are verified in headless Chrome (frame timing, CPU throttling, scheduled oscillators), not on a physical phone or by ear.
+- Over the ~300-line guideline: `styles/controls.css` (319), `tests/view.test.ts` (372), `tests/session.test.ts` (311).
+- SPEC §9's optional best-score persistence is still not implemented. It needs a decision on session vs all-time "Best".

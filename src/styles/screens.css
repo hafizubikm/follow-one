@@ -122,77 +122,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---------- result card: replaces the stats strip in RESULT, below the arena ---------- */
-
-#app:not([data-screen='result']) .result-card,
-[data-screen='result'] .stats {
-  display: none;
-}
-
-/* The footer grows downward to fit the card; on short viewports the page scrolls to it (SPEC §4).
-   Its bottom padding is part of the scrollable area, so the card never ends flush with the viewport. */
-[data-screen='result'] .footer {
-  align-items: flex-start;
-  height: auto;
-  min-height: var(--footer-h);
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
-}
-
-.result-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'headline action'
-    'subline action'
-    'stats stats';
-  align-items: center;
-  gap: 4px 20px;
-  width: 100%;
-  padding: 16px 20px;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--surface);
-  box-shadow:
-    0 1px 2px rgb(var(--shadow) / 0.06),
-    0 14px 36px rgb(var(--shadow) / 0.12);
-  scroll-margin-bottom: calc(16px + env(safe-area-inset-bottom));
-  animation: result-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1.25);
-}
-
-@keyframes result-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-}
-
-.result-headline {
-  grid-area: headline;
-  font-size: 1.375rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-}
-
-.result-subline {
-  grid-area: subline;
-  text-wrap: pretty;
-}
-
-.result-card .result-action {
-  grid-area: action;
-}
-
-.result-stats {
-  grid-area: stats;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 22px;
-  margin-top: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
 /* ---------- responsive ---------- */
 
 @media (max-width: 480px) {
@@ -200,75 +129,6 @@
     gap: 12px;
     padding: 26px 20px 22px;
     border-radius: 24px;
-  }
-
-  .result-card {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      'headline'
-      'subline'
-      'stats'
-      'action';
-    padding: 16px;
-  }
-
-  .result-stats {
-    gap: 4px 18px;
-    margin-block: 6px 10px;
-  }
-
-  .result-card .result-action {
-    width: 100%;
-  }
-}
-
-/* Landscape phones: a wide two-row card, so it hangs as little as possible below the arena. */
-@media (max-height: 520px) and (min-width: 481px) {
-  [data-screen='result'] .footer {
-    width: min(100cqw, 46rem);
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  }
-
-  .result-card {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas:
-      'headline subline action'
-      'stats stats action';
-    gap: 2px 14px;
-    padding: 10px 16px;
-    border-radius: 18px;
-    scroll-margin-bottom: calc(8px + env(safe-area-inset-bottom));
-  }
-
-  .result-headline {
-    font-size: 1.125rem;
-  }
-
-  .result-subline {
-    font-size: 0.9375rem;
-  }
-
-  .result-stats {
-    gap: 2px 14px;
-    margin-top: 2px;
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .result-stats .stat {
-    gap: 6px;
-  }
-
-  .result-stats dt {
-    font-size: 0.75rem;
-  }
-
-  .result-stats dd {
-    font-size: 0.9375rem;
-  }
-
-  .result-card .result-action {
-    padding-inline: 22px;
   }
 }
 
@@ -304,10 +164,6 @@
 @media (prefers-reduced-motion: reduce) {
   .button-primary {
     transition: none;
-  }
-
-  .result-card {
-    animation: none;
   }
 
   .button-primary:active {

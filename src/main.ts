@@ -6,6 +6,7 @@ import './styles/hud.css';
 import './styles/arena.css';
 import './styles/countdown.css';
 import './styles/screens.css';
+import './styles/result.css';
 import './styles/settings.css';
 import './styles/controls.css';
 import { createSfx } from './audio/sfx.ts';

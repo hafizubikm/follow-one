@@ -58,7 +58,7 @@ src/
     random.ts             randomInt, randomBetween, shuffle (Fisher–Yates)
     storage.ts            try/catch wrappers around an injected localStorage
     fixedStep.ts          fixed-timestep accumulator with clamped frame time (§6)
-  styles/                 plain CSS: tokens, base, layout, then one file per render module
+  styles/                 plain CSS: tokens, base, layout, then one file per render module (the result card has its own)
 tests/
   physics.test.ts  round.test.ts  slots.test.ts  score.test.ts  stateMachine.test.ts  settings.test.ts
 ```
@@ -168,7 +168,7 @@ Never use technical language ("tracking phase initiated", "select target entity"
 - Use `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and safe-area insets for header/footer padding.
 - No game overlay covers the balls during `TARGET_INTRO`, `COUNTDOWN`, `TRACKING` or `RETURNING` (the player may still open Settings over them). The countdown and the tracking timer are a watermark in the arena center, drawn behind the balls (§5).
 - The arena size is computed the same way in every state so the layout never shifts between states.
-- The result card appears below the arena; the arena stays visible with both highlighted balls. When the viewport is too short for the card, the page scrolls just enough to show it (the header and HUD go first, the arena stays whole); Play Again scrolls back to the top.
+- The result card appears below the arena; the arena stays visible with both highlighted balls. When the viewport is too short for the card, the page scrolls just enough to show it (the header and HUD go first, the arena stays whole); Play Again scrolls back to the top. The card is compact wherever it has to be for that: on landscape phones it runs wider in two rows, and on short portrait screens (phones whose browser bars take height) Play Again sits beside the headline and the stats form one row.
 
 **Normalized coordinates.** All positions and radii are stored in arena units: center `(0, 0)`, arena radius `1`. The renderer multiplies by the current pixel radius each frame. Resizing or rotating mid-round therefore just rescales; physics never sees pixels.
 

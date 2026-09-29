@@ -11,22 +11,6 @@ import type { Vec } from './physics/vec.ts';
 import type { Arena } from './render/arena.ts';
 import { el } from './render/dom.ts';
 
-const panelStyle = [
-  'position:fixed',
-  'left:12px',
-  'bottom:12px',
-  'z-index:10',
-  'display:grid',
-  'gap:6px',
-  'padding:10px 12px',
-  'border:1px solid var(--border)',
-  'border-radius:12px',
-  'background:var(--surface)',
-  'color:var(--text)',
-  'font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace',
-  'box-shadow:0 8px 24px rgb(var(--shadow) / 0.15)',
-].join(';');
-
 export function startDebug(arena: Arena): void {
   // ballRadius is the size at the default count; the count slider applies the §5 scaling to it.
   const tuning = { ...config, baseSpeed: config.baseSpeed as number, ballRadius: config.ballRadius as number };
@@ -42,6 +26,22 @@ export function startDebug(arena: Arena): void {
   };
 
   const readout = el('output');
+  // Inside the function: a module-level [...].join() would survive tree-shaking in production.
+  const panelStyle = [
+    'position:fixed',
+    'left:12px',
+    'bottom:12px',
+    'z-index:10',
+    'display:grid',
+    'gap:6px',
+    'padding:10px 12px',
+    'border:1px solid var(--border)',
+    'border-radius:12px',
+    'background:var(--surface)',
+    'color:var(--text)',
+    'font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace',
+    'box-shadow:0 8px 24px rgb(var(--shadow) / 0.15)',
+  ].join(';');
   const panel = el('div');
   panel.style.cssText = panelStyle;
   panel.append(
