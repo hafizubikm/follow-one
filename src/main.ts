@@ -12,12 +12,13 @@ import './styles/controls.css';
 import { createSfx } from './audio/sfx.ts';
 import { config } from './config.ts';
 import { startDebug } from './debug.ts';
+import { createSavedBest } from './game/score.ts';
 import { createSession, type GameEvent } from './game/session.ts';
 import type { GameState } from './game/stateMachine.ts';
-import { arenaView, countdownView, hudView, resultView } from './game/view.ts';
+import { arenaView, countdownView, hudView, longestResultViews, resultView } from './game/view.ts';
 import { wireSelection } from './input/selection.ts';
 import { startLoop } from './loop.ts';
-import { createArena } from './render/arena.ts';
+import { createArena, SLOT_NUMBER_GAP_PX } from './render/arena.ts';
 import { createCountdown } from './render/countdown.ts';
 import { el } from './render/dom.ts';
 import { createHeader } from './render/header.ts';
@@ -57,6 +58,10 @@ const app = document.getElementById('app');
 if (!app) throw new Error('index.html is missing #app');
 app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
 app.style.setProperty('--full-width-max', `${config.fullWidthMaxPx}px`);
+// Where the slot numbers sit: past the ring's outer edge (in arena radii, the same at every ball count, SPEC §7)
+// by a gap. The arena leaves room for the top one when it sits right above the result card (layout.css).
+app.style.setProperty('--ring-edge', String(config.slotRadius + config.ballRadius));
+app.style.setProperty('--slot-number-gap', `${SLOT_NUMBER_GAP_PX}px`);
 
 // Which sound each cue plays (SPEC §10).
 function playCue(event: GameEvent): void {
@@ -81,6 +86,7 @@ const session = createSession({
   strict: import.meta.env.DEV,
   reducedMotion,
   setup: () => roundSetup(settings.current),
+  savedBest: createSavedBest(store),
   onEvent: playCue,
 });
 
@@ -96,8 +102,13 @@ const resultCard = createResultCard(() => {
   if (!session.playAgain()) return;
   setScreen(app, 'play');
   window.scrollTo({ top: 0 });
-});
-footer.append(strip.el, resultCard.el);
+}, longestResultViews());
+footer.append(strip.el, resultCard.el, resultCard.sizer);
+// On short viewports the arena leaves room under it for the result card at its longest (SPEC §4). The
+// sizer's height follows the width and the font, and doesn't depend on the arena.
+new ResizeObserver(([entry]) => {
+  app.style.setProperty('--card-room', `${Math.ceil(entry.borderBoxSize[0].blockSize)}px`);
+}).observe(resultCard.sizer);
 stage.append(hud.el, arena.el, footer);
 wireSelection(arena, { canPick: () => session.selectionLive, pick: (id) => session.pick(id) });
 

@@ -6,6 +6,7 @@
   --footer-h: 56px;
   --stack-gap: 12px;
   --arena-min: 120px;
+  --slot-number-size: 0.75rem;
 
   container-type: inline-size;
   display: grid;
@@ -40,12 +41,24 @@
   --column-w: min(100cqw, (100cqw + var(--full-width-max)) / 2, var(--arena-max));
 }
 
-/* Arena diameter = min(column, height left after HUD and footer); computed identically in every state. */
+/* Arena diameter = min(column, height left after HUD and footer, height left above the result card once the
+   header and HUD have scrolled away); computed identically in every state (SPEC §4). --card-room is the card's
+   height at its longest, measured by main.ts; --card-margin is the space under it (result.css).
+   The top slot number has to fit up there too: it is centered --slot-number-gap past the ring's outer edge
+   (--ring-edge × the radius), so on smaller arenas it reaches past the arena's own edge. The extra 1px is
+   for the scroll, which lands on whole pixels. */
 .stage > *,
 .start-screen > * {
+  --above-card: calc(100svh - var(--card-room, 0px) - var(--stack-gap) - var(--card-margin));
+  --number-reach: calc(var(--slot-number-gap) + var(--slot-number-size) / 2 + 1px);
   --arena-size: max(
     var(--arena-min),
-    min(var(--column-w), 100cqh - var(--hud-h) - var(--footer-h) - 2 * var(--stack-gap))
+    min(
+      var(--column-w),
+      100cqh - var(--hud-h) - var(--footer-h) - 2 * var(--stack-gap),
+      var(--above-card),
+      (var(--above-card) - var(--number-reach)) * 2 / (1 + var(--ring-edge))
+    )
   );
   flex: none;
 }
@@ -63,7 +76,13 @@
 
   .stage > *,
   .start-screen > * {
-    --arena-size: min(var(--column-w), 100vh - 220px);
+    --above-card: calc(100vh - var(--card-room, 0px) - var(--stack-gap) - var(--card-margin));
+    --arena-size: min(
+      var(--column-w),
+      100vh - 220px,
+      var(--above-card),
+      (var(--above-card) - var(--number-reach)) * 2 / (1 + var(--ring-edge))
+    );
   }
 }
 

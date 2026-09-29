@@ -2,7 +2,7 @@ import { config, type Config } from '../config.ts';
 import type { Vec } from '../physics/vec.ts';
 import { stepWorld, type PhysicsParams } from '../physics/world.ts';
 import { createRound, defaultSetup, roundPhysics, type Round, type RoundSetup } from './round.ts';
-import { createStats, recordAnswer, startRound, type Stats } from './score.ts';
+import { createStats, recordAnswer, startRound, type SavedBest, type Stats } from './score.ts';
 import { assignSlots, glidePoint, slotPosition } from './slots.ts';
 import { createStateMachine, phaseDurationMs, type GameState } from './stateMachine.ts';
 
@@ -21,6 +21,8 @@ export interface SessionOptions {
   reducedMotion(): boolean;
   /** The player's ball count and speed, read once as each round is built (SPEC §2.6); defaults if absent. */
   setup?(): RoundSetup;
+  /** The best streak kept between visits (SPEC §9): read as each round is built, recorded at REVEAL. */
+  readonly savedBest?: SavedBest;
   onEvent(event: GameEvent): void;
 }
 
@@ -71,7 +73,7 @@ export function createSession(options: SessionOptions, settings: Config = config
     if (state === 'TARGET_INTRO') {
       round = createRound(options.setup?.() ?? defaultSetup, settings);
       physics = roundPhysics(round, settings);
-      stats = startRound(stats);
+      stats = startRound(stats, options.savedBest?.read());
       pickedId = null;
       prevX = new Float64Array(round.balls.length);
       prevY = new Float64Array(round.balls.length);
@@ -91,6 +93,7 @@ export function createSession(options: SessionOptions, settings: Config = config
     if (state === 'REVEAL' && round) {
       const correct = pickedId === round.targetId;
       stats = recordAnswer(stats, correct, settings.score);
+      options.savedBest?.record(stats.bestStreak);
       emit({ type: 'answer', correct });
     }
   };

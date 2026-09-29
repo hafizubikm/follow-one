@@ -63,7 +63,7 @@ export const config = {
     theme: 'followone.theme',
     sound: 'followone.sound',
     settings: 'followone.settings',
-    best: 'followone.best',
+    best: 'followone.best', // the all-time best streak (§9)
   },
 } as const;
 

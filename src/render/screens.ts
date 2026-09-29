@@ -77,38 +77,62 @@ export function createStatsStrip(): StatsStrip {
 
 export interface ResultCard {
   readonly el: HTMLElement;
+  /**
+   * A hidden copy of the card at its longest, laid out at the card's width in every state: its height is the
+   * room the arena leaves for the card (SPEC §4).
+   */
+  readonly sizer: HTMLElement;
   show(view: ResultView): void;
   /** Focuses Play Again without scrolling; the caller decides how to bring the card into view. */
   focus(): void;
 }
 
-export function createResultCard(onPlayAgain: () => void): ResultCard {
-  const card = el('section', 'result-card');
-  card.setAttribute('aria-labelledby', 'result-headline');
-  const headline = el('h2', 'result-headline');
-  headline.id = 'result-headline';
-  const subline = el('p', 'result-subline');
-  subline.id = 'result-subline';
-  const stats = el('dl', 'result-stats');
+/** `longest`: the longest results (game/view.ts); the sizer stacks their sub-lines in one cell. */
+export function createResultCard(onPlayAgain: () => void, longest: readonly ResultView[]): ResultCard {
+  const card = resultCardParts();
+  card.el.setAttribute('aria-labelledby', 'result-headline');
+  card.headline.id = 'result-headline';
+  card.subline.id = 'result-subline';
+  // Focus lands here on entry, so screen readers hear the verdict's detail with the button.
+  card.button.setAttribute('aria-describedby', 'result-subline');
+  card.button.addEventListener('click', onPlayAgain);
 
+  const sizer = resultCardParts();
+  sizer.el.classList.add('result-sizer');
+  sizer.el.setAttribute('aria-hidden', 'true');
+  sizer.el.inert = true;
+  sizer.show(longest[0]);
+  sizer.subline.replaceChildren(...longest.map((view) => el('span', '', view.subline)));
+
+  return {
+    el: card.el,
+    sizer: sizer.el,
+    show: card.show,
+    focus() {
+      card.button.focus({ preventScroll: true });
+    },
+  };
+}
+
+function resultCardParts() {
+  const card = el('section', 'result-card');
+  const headline = el('h2', 'result-headline');
+  const subline = el('p', 'result-subline');
+  const stats = el('dl', 'result-stats');
   const button = el('button', 'button-primary result-action', copy.result.playAgain);
   button.type = 'button';
-  // Focus lands here on entry, so screen readers hear the verdict's detail with the button.
-  button.setAttribute('aria-describedby', 'result-subline');
-  button.addEventListener('click', onPlayAgain);
-
   card.append(headline, subline, stats, button);
   return {
     el: card,
-    show(view) {
+    headline,
+    subline,
+    button,
+    show(view: ResultView) {
       card.dataset.verdict = view.correct ? 'correct' : 'incorrect';
       headline.replaceChildren(icon(view.icon), view.headline);
       subline.textContent = view.subline;
       stats.replaceChildren();
       for (const item of view.stats) stat(stats, item.label, item.icon).textContent = item.value;
-    },
-    focus() {
-      button.focus({ preventScroll: true });
     },
   };
 }

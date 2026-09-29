@@ -31,7 +31,7 @@ src/
     view.ts               what the HUD and each ball show, derived from the session (the only place the target is singled out before REVEAL)
     round.ts              new-round setup: spawn, target pick, name assignment
     slots.ts              ring geometry + angular slot assignment (§7)
-    score.ts              scoring + session stats (§9)
+    score.ts              scoring, session stats and the saved best streak (§9)
   physics/
     world.ts              integrate, boundary, ball–ball collisions, speed regulation (§6)
     vec.ts
@@ -163,7 +163,8 @@ Never use technical language ("tracking phase initiated", "select target entity"
 
 - Vertical stack: **header** (the title, centered, then the ⚙ settings button at the right) → **HUD** (the current instruction; fixed height so nothing jumps) → **arena** → **stats strip** (Round · Score · Streak) or, after a round, the **result card**. Settings open in a drawer over the page (§16), never inside the gameplay area.
 - **Page column.** The whole stack shares one centered column, so ⚙ sits at the right end of the game's column, never at the window's edge. Column width = `min(W, (W + fullWidthMaxPx) / 2, arenaMaxPx)`, where `W` is the width between the side gutters: the full width on phones (up to `fullWidthMaxPx` = 432 px), then half of every extra pixel goes to the side margins, up to `arenaMaxPx` = 560 px on tablets and desktops. Nothing runs edge to edge on a desktop. (On landscape phones the result card runs wider than the column, so it hangs less below the arena.)
-- Arena diameter = `min(column width, available height − chrome)`. Mobile portrait: nearly full width. Landscape phones and short desktop windows: height-limited, still playable.
+- Arena diameter = `min(column width, available height − chrome, viewport height − card room)`. Mobile portrait: nearly full width. Landscape phones and short desktop windows: height-limited, still playable.
+- The card room is what the result card needs under the arena once the header and HUD have scrolled away: the card's height at its longest, plus the gap above it and its bottom margin. A hidden copy of the card sits at the card's width and holds a miss in slots #{ballCountMax} and #{ballCountMax − 1} with large totals. Which name renders widest depends on the font, so the copy's sub-line cell stacks the sub-line once per name, with that name in both places. The copy's height follows width and font changes. On smaller arenas the top slot number reaches past the arena's edge, and the room above the card covers it too. The card room only binds on short viewports, and it is the same in every state.
 - No horizontal scrolling in any state. Size elements correctly rather than hiding overflow.
 - Use `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and safe-area insets for header/footer padding.
 - No game overlay covers the balls during `TARGET_INTRO`, `COUNTDOWN`, `TRACKING` or `RETURNING` (the player may still open Settings over them). The countdown and the tracking timer are a watermark in the arena center, drawn behind the balls (§5).
@@ -280,8 +281,8 @@ Never teleport balls, never reposition them per frame, never treat the target di
 
 - Correct: `+100 + 25 × (streak − 1)`, where `streak` includes this answer (1st in a row = 100, 2nd = 125, 3rd = 150…).
 - Incorrect: `+0`; streak resets to 0.
-- Session stats: `round`, `correct`, `incorrect`, `accuracy = correct / (correct + incorrect)` (shown as a rounded percentage, 0% before any answer), `streak`, `bestStreak`, `score`. Reset on page reload.
-- Optional: persist `bestStreak` and `bestScore` in localStorage under `followone.best`.
+- Session stats: `round`, `correct`, `incorrect`, `accuracy = correct / (correct + incorrect)` (shown as a rounded percentage, 0% before any answer), `streak`, `bestStreak`, `score`. All but `bestStreak` reset on page reload.
+- `bestStreak` is the best streak ever reached on this device, shown as "Best 🔥" on the result card. It is stored under `followone.best` as `{ "bestStreak": n }` through the try/catch storage wrappers, and a missing or invalid value counts as 0. Each round starts from the higher of the stored best and the session's own. At `REVEAL` a new best is stored only if it beats the stored one, so a higher best set in another tab is never overwritten.
 
 ---
 
@@ -379,7 +380,7 @@ export const config = {
     theme: 'followone.theme',
     sound: 'followone.sound',
     settings: 'followone.settings',
-    best: 'followone.best',
+    best: 'followone.best', // the all-time best streak (§9)
   },
 } as const;
 ```
@@ -438,7 +439,7 @@ v1.1:
 - [ ] Balls glide to the ring; slot numbers appear; player can pick exactly one ball.
 - [ ] Input locks after the pick; "Checking..." shows; reveal happens after the delay.
 - [ ] Correct and incorrect results both display with the right copy and highlights.
-- [ ] Score, streak, best streak, accuracy and round all update correctly.
+- [ ] Score, streak, best streak, accuracy and round all update correctly; the best streak survives a reload, and the rest start over.
 - [ ] Play Again starts a fresh round with a new random target.
 
 **Fairness**

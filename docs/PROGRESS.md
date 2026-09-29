@@ -640,3 +640,89 @@ Asked for after phase 11, from a screenshot of the dot beside the title: "Add a 
 
 ### Known issues / notes
 - SVG favicons need Safari 26 or later (Chrome and Firefox have supported them for years); older Safari shows no icon, since a PNG fallback would be an image file.
+
+## 2026-09-30 — Leftovers: saved best streak, result card room, file sizes
+
+Asked for after the favicon: "complete if anything left". Three things were left:
+- SPEC §9's optional best persistence, which needed a decision (asked: the all-time best streak);
+- the §4 known issue, the arena clipped above the result card on short viewports;
+- three files over the ~300-line guideline.
+
+### Spec edits
+- §9: "Best 🔥" is the best streak ever reached on this device.
+  - It is stored under `followone.best` as `{ "bestStreak": n }`, and an invalid value counts as 0.
+  - Each round starts from the higher of the stored best and the session's own. A new best is stored at REVEAL only if it beats what's stored now, so a higher best from another tab survives.
+  - The other stats still reset on reload. `bestScore` is dropped, since no screen would show it.
+- §4: the arena diameter gains a third term, viewport height − card room.
+  - The card room is what the result card needs under the arena at its longest, measured from a hidden copy of the card.
+  - On small arenas it also covers the top slot number, which reaches past the arena's edge.
+- §0 (the `score.ts` line), §11 (a comment on `storageKeys.best`), §14 (the best streak survives a reload, the rest start over). No default changed.
+
+### Done
+- Saved best streak:
+  - `game/score.ts`: `parseBestStreak`, and `createSavedBest(store)`, which reads the stored best and records a new one only when it beats what's stored now. `startRound(stats, savedBest)` merges the stored best in.
+  - The session takes an optional `savedBest`: it reads it as each round is built and records it at REVEAL. `main.ts` passes `createSavedBest` over localStorage.
+- Result card room (§4):
+  - `render/screens.ts` builds the card with one function, used twice. The second copy, `.result-sizer`, is `visibility: hidden`, `inert` and `aria-hidden`. It hangs up from the footer's bottom, so it never adds to the page's height.
+  - The sizer holds `longestResultViews()` (`game/view.ts`): a miss in slots #30/#29 with large totals (Round 999, Score 99999, 100%, 99, 99). Its sub-line cell stacks the sub-line once per name, with that name in both places, because which name renders widest depends on the font.
+  - `main.ts`: a ResizeObserver on the sizer sets `--card-room`. `--ring-edge` (`slotRadius + ballRadius`, the ring's outer edge at every count) and `--slot-number-gap` (from `arena.ts`) come from their sources.
+  - `layout.css`: `--arena-size` takes the smallest of four terms:
+    - the column width;
+    - the height left after the HUD and footer;
+    - the room above the card;
+    - the room above the card less the top slot number's reach, plus 1px because the scroll lands on whole pixels.
+    It is the same in every state.
+  - `result.css`: `--card-margin` replaces the bottom-margin calc repeated in four places. The landscape footer now has the card's width in every state, so the sizer measures the card at its own width; the stats strip is centered either way.
+- File sizes:
+  - `tests/view.test.ts` (372 lines): the ring, input, reveal and result card tests moved to `tests/ringView.test.ts`.
+  - `tests/session.test.ts` (311): the picking and scoring tests moved to `tests/picking.test.ts`. The moved `describe` blocks were checked byte-identical.
+  - `styles/controls.css` (319 → 309): segments and swatches share one hidden-radio rule and one disabled-cursor rule, with the same specificity and cascade.
+- Tests (233, was 223):
+  - The best streak's parsing, storing, re-reading before a write, and missing or throwing storage.
+  - The session reads it at round start and records it at REVEAL, not before. It keeps the best through a miss, outlives a reload, and takes a higher best from another tab at the next round.
+  - The longest views, and a check that no miss can have a longer sub-line.
+  - Mutation check: dropping the REVEAL record, the round-start read, the re-read before storing, or the integer check each fails the suite.
+
+### Verified in the browser (headless Chrome over the DevTools protocol)
+- Best streak, on the dev server, the production build from `/dist/` and `file://`, 20 checks each:
+  - four correct rounds give Best 4, stored as `{"bestStreak":4}`;
+  - a miss keeps Best 4 with Streak 0;
+  - after a reload the card shows Round 1 · Score 0 · Streak 0 · Best 4, and the strip starts at 0;
+  - a corrupt stored value counts as 0 and the next best replaces it.
+- Result layout: a grid of 1,360 viewports (320–1000 px wide × 300–900 px tall), with the longest possible sub-line, laid out and scrolled as RESULT does. It ran with Play and with the font host blocked, on the dev server and on the build.
+  - Before: the arena was clipped at 154 sizes (182 with the fallback font), in three regions:
+    - portrait windows up to ~520 px tall, by 6–38 px;
+    - 481–540 px wide × 521–680 px tall, by 10 px, where the sub-line wraps to three lines beside Play Again;
+    - tiny landscape windows.
+  - The round-1 grid also understates real sessions. At 560–600 px wide the stats wrap to two rows by round 10 (Round 10 · Score 1250), and the card grows from 165 to 194 px, the sizer's height.
+  - After: the arena, every slot number and the card fit at every size except windows at most 460 × 380 px (31 sizes; 35 with the fallback font), where the arena sits at its 120 px floor. There is no horizontal overflow at any size; a pre-existing 115 px overflow at 320×300 is gone.
+  - The arena shrank at 308 sizes and grew at none, all within 680 × 760 px. Examples:
+    - 375×500: 340 → 294;
+    - 390×520: 358 → 336;
+    - 480×480: 320 → 295;
+    - 500×600: 388 → 371;
+    - 320×460: 288 → 253.
+    1280×800, 812×375 and 375×812 are unchanged.
+- The sizer:
+  - it is hidden, inert and aria-hidden, absent from the accessibility tree, and adds no duplicate ids;
+  - the start screen still doesn't scroll, and the tab order is still ⚙ → Start Game;
+  - RESULT still focuses the real Play Again;
+  - its content never changes during a round.
+- Drawer radios after the CSS merge: all 16 are absolute, transparent, pointer-cursored and label-sized; the drawer opens and closes.
+- Fairness spot check: after the fade, every ball's markup is identical (minus the transform).
+- Screenshots of start, play and result at 375×500, 500×600, 812×375 and 1280×800 (light), and at 390×520 (dark, reduced motion). On the smaller arenas the start card overflows evenly into the HUD and footer, as designed.
+
+### SPEC §14 items touched
+- Verified:
+  - Score, streak, best streak, accuracy and round update correctly; the best streak survives a reload and the rest start over.
+  - No horizontal scrolling at 1,360 sizes.
+  - Nothing in the DOM distinguishes the target after the fade (spot check).
+  - Focus lands on Play Again in RESULT.
+  - All Vitest tests pass (233), and no file is over ~300 lines (the largest is `controls.css` at 309).
+
+### Known issues / notes
+- Windows at most ~460 × 380 px can't fit the card under the arena's 120 px floor, so the arena's top is clipped there. No phone or tablet viewport is that small.
+- The sizer reserves for the widest name twice, a safe upper bound. In a ~9 px band of widths (371–380 px in the compact layout) it reserves a sub-line row that no real miss needs, and only on short viewports. On a real device that costs the iPhone SE 2/3's Safari viewport (375×548) 4 px of arena (343 → 339).
+- The large totals keep room for long sessions, with 3-digit rounds, 5-digit scores and 2-digit streaks. On windows 481–680 px wide and up to 760 px tall that costs 3–19 px of arena in every round, even before the numbers grow.
+- On arenas under ~190 px (windows 300–420 px tall), the bottom slot number's 12 px box overlaps the card's top edge by 1–3 px, because the 8 px gap under the arena is smaller than the number's reach there. Of these 158 grid sizes, 75 had it before with the same arena. At the other 83 (≤ 500 × 420 px) the arena shrank to fit: 65 had the arena's top clipped before, by up to 136 px, and 18 (460–500 px wide, 300–400 px tall) had a whole arena but the top slot number cut off (computed from the ring geometry; the old grid didn't measure the numbers).
+- The scratch scripts (grid sweep, checks, screenshots) live in this session's scratchpad, not the repo.

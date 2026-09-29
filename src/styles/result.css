@@ -1,6 +1,11 @@
 /* ---------- result card: replaces the stats strip in RESULT, below the arena ---------- */
 
-#app:not([data-screen='result']) .result-card,
+/* The space under the card when the page scrolls to it; the arena's height budget counts it too (layout.css). */
+#app {
+  --card-margin: calc(16px + env(safe-area-inset-bottom));
+}
+
+#app:not([data-screen='result']) .result-card:not(.result-sizer),
 [data-screen='result'] .stats {
   display: none;
 }
@@ -11,7 +16,7 @@
   align-items: flex-start;
   height: auto;
   min-height: var(--footer-h);
-  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  padding-bottom: var(--card-margin);
 }
 
 .result-card {
@@ -31,8 +36,33 @@
   box-shadow:
     0 1px 2px rgb(var(--shadow) / 0.06),
     0 14px 36px rgb(var(--shadow) / 0.12);
-  scroll-margin-bottom: calc(16px + env(safe-area-inset-bottom));
+  scroll-margin-bottom: var(--card-margin);
   animation: result-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1.25);
+}
+
+/* The sizer (render/screens.ts): the card at its longest, hidden, at the footer's width in every state. It hangs
+   up from the footer's bottom, over the arena, so it never adds to the page's height. */
+.footer {
+  position: relative;
+}
+
+.result-card.result-sizer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+}
+
+/* Every sub-line it could need, stacked in one cell, so the cell is as tall as the widest makes it. */
+.result-sizer .result-subline {
+  display: grid;
+}
+
+.result-sizer .result-subline > * {
+  grid-area: 1 / 1;
 }
 
 @keyframes result-in {
@@ -148,9 +178,13 @@
 
 /* Landscape phones: a wide two-row card, so it hangs as little as possible below the arena. */
 @media (max-height: 520px) and (min-width: 481px), (max-height: 520px) and (orientation: landscape) {
-  [data-screen='result'] .footer {
+  #app {
+    --card-margin: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  /* As wide as the card in every state, so the sizer measures the card at its own width. */
+  .footer {
     width: min(100cqw, 46rem);
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 
   .result-card {
@@ -161,7 +195,6 @@
     gap: 2px 14px;
     padding: 10px 16px;
     border-radius: 18px;
-    scroll-margin-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 
   .result-headline {

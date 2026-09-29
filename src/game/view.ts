@@ -2,6 +2,7 @@
 // see these views, never targetId, so this file is the one place the target is singled out.
 import { config, type Config } from '../config.ts';
 import { copy, countdownNumerals, fill } from '../copy.ts';
+import { getPack } from '../names/packs.ts';
 import type { Ball, Round } from './round.ts';
 import { accuracyPercent } from './score.ts';
 import { secondsLeft, type Session } from './session.ts';
@@ -228,26 +229,47 @@ export function resultView(s: SessionState): ResultView | null {
   const target = round.balls[round.targetId];
   const picked = round.balls[s.pickedId];
   const correct = picked.id === target.id;
+  const stats = s.stats;
+  return cardView(
+    correct,
+    { name: target.name, picked: picked.name, pickedSlot: picked.slot ?? '', targetSlot: target.slot ?? '' },
+    [stats.round, stats.score, accuracyPercent(stats), stats.streak, stats.bestStreak],
+  );
+}
+
+// Totals a long session could reach, so the longest card holds numbers as wide as real ones.
+const LARGE_TOTALS = [999, 99_999, 100, 99, 99] as const;
+
+/**
+ * The result card at its longest, which the arena leaves room for (SPEC §4): a miss in the highest slots with
+ * large totals, once per name with that name in both places. No real miss is wider than the widest of these,
+ * and which name renders widest depends on the font, so the sizer stacks them all.
+ */
+export function longestResultViews(settings: Config = config): ResultView[] {
+  const slot = settings.ballCountMax;
+  return getPack(settings.namePackId).names.map((name) =>
+    cardView(false, { name, picked: name, pickedSlot: slot, targetSlot: slot - 1 }, LARGE_TOTALS),
+  );
+}
+
+type Totals = readonly [round: number, score: number, accuracy: number, streak: number, best: number];
+
+/** `fills`: the sub-line's names and slots. */
+function cardView(correct: boolean, fills: Readonly<Record<string, string | number>>, totals: Totals): ResultView {
   const verdict = correct ? copy.result.correct : copy.result.incorrect;
   const labels = copy.stats;
-  const stats = s.stats;
-
+  const [round, score, accuracy, streak, best] = totals;
   return {
     correct,
     icon: verdict.icon,
     headline: verdict.headline,
-    subline: fill(verdict.subline, {
-      name: target.name,
-      picked: picked.name,
-      pickedSlot: picked.slot ?? '',
-      targetSlot: target.slot ?? '',
-    }),
+    subline: fill(verdict.subline, fills),
     stats: [
-      { label: labels.round, icon: '', value: String(stats.round) },
-      { label: labels.score, icon: '', value: String(stats.score) },
-      { label: labels.accuracy, icon: '', value: fill(labels.accuracyValue, { percent: accuracyPercent(stats) }) },
-      { label: labels.streak, icon: labels.streakIcon, value: String(stats.streak) },
-      { label: labels.best, icon: labels.streakIcon, value: String(stats.bestStreak) },
+      { label: labels.round, icon: '', value: String(round) },
+      { label: labels.score, icon: '', value: String(score) },
+      { label: labels.accuracy, icon: '', value: fill(labels.accuracyValue, { percent: accuracy }) },
+      { label: labels.streak, icon: labels.streakIcon, value: String(streak) },
+      { label: labels.best, icon: labels.streakIcon, value: String(best) },
     ],
   };
 }

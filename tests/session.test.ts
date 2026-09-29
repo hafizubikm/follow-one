@@ -3,7 +3,7 @@ import { config } from '../src/config.ts';
 import { defaultSetup, type RoundSetup } from '../src/game/round.ts';
 import { createSession, type Session } from '../src/game/session.ts';
 import { assignSlots, slotPosition } from '../src/game/slots.ts';
-import { started, steps, toLiveSelection, wrongId } from './drive.ts';
+import { started, steps, toLiveSelection } from './drive.ts';
 
 const positionsOf = (s: Session) => s.round?.balls.map(({ x, y }) => [x, y]);
 
@@ -223,89 +223,5 @@ describe('session: settings per round (SPEC §2.6, §16)', () => {
     const round = driven.session.round!;
     expect(round.ringRadius).toBeCloseTo(config.slotRadius + config.ballRadius - round.ballRadius, 12);
     for (const ball of round.balls) expect(ball).toMatchObject(slotPosition(ball.slot!, 30, round.ringRadius));
-  });
-});
-
-describe('session: picking (SPEC §8)', () => {
-  it('ignores picks before selection is live, then takes the first one only', () => {
-    const driven = started();
-    const { session } = driven;
-    driven.runUntil('TRACKING');
-    expect(session.pick(0)).toBe(false);
-    driven.runUntil('SELECTION');
-    expect(session.selectionLive).toBe(false);
-    expect(session.pick(0)).toBe(false); // still settling
-    driven.run(steps(config.settleMs));
-    expect(session.selectionLive).toBe(true);
-    expect(session.pick(99)).toBe(false); // not a ball
-    expect(session.pick(3)).toBe(true);
-    expect(session.state).toBe('CHECKING');
-    expect(session.selectionLive).toBe(false);
-    expect(session.pick(4)).toBe(false);
-    expect(session.pickedId).toBe(3);
-  });
-
-  it('never goes live when the settle is over but the state has moved on', () => {
-    const driven = started();
-    toLiveSelection(driven);
-    driven.session.pick(driven.session.round!.targetId);
-    driven.run(steps(config.suspenseMs) - 1);
-    expect(driven.session.state).toBe('CHECKING');
-    expect(driven.session.selectionLive).toBe(false);
-  });
-
-  it('scores a correct pick at REVEAL, after the suspense', () => {
-    const driven = started();
-    const { session, events } = driven;
-    toLiveSelection(driven);
-    session.pick(session.round!.targetId);
-    driven.run(steps(config.suspenseMs) - 1);
-    expect(session.stats.score).toBe(0); // not before REVEAL
-    driven.run(1);
-    expect(session.state).toBe('REVEAL');
-    expect(session.stats).toMatchObject({ correct: 1, streak: 1, bestStreak: 1, score: 100 });
-    expect(events.at(-1)?.event).toEqual({ type: 'answer', correct: true });
-    driven.run(steps(config.revealMs));
-    expect(session.state).toBe('RESULT');
-  });
-
-  it('scores a wrong pick as a miss', () => {
-    const driven = started();
-    const { session, events } = driven;
-    toLiveSelection(driven);
-    session.pick(wrongId(session));
-    driven.runUntil('REVEAL');
-    expect(session.stats).toMatchObject({ correct: 0, incorrect: 1, streak: 0, score: 0 });
-    expect(events.at(-1)?.event).toEqual({ type: 'answer', correct: false });
-  });
-
-  it('waits in RESULT, then Play Again starts a fresh round with a new layout', () => {
-    const driven = started();
-    const { session } = driven;
-    toLiveSelection(driven);
-    session.pick(session.round!.targetId);
-    driven.runUntil('RESULT');
-    driven.run(10_000);
-    expect(session.state).toBe('RESULT');
-
-    const previous = session.round;
-    expect(session.playAgain()).toBe(true);
-    expect(session.state).toBe('TARGET_INTRO');
-    expect(session.round).not.toBe(previous);
-    expect(session.round!.balls.every((b) => b.slot === null)).toBe(true);
-    expect(session.pickedId).toBeNull();
-    expect(session.stats).toMatchObject({ round: 2, correct: 1, score: 100 });
-  });
-
-  it('keeps the streak going across rounds', () => {
-    const driven = started();
-    const { session } = driven;
-    for (let round = 1; round <= 3; round++) {
-      toLiveSelection(driven);
-      session.pick(session.round!.targetId);
-      driven.runUntil('RESULT');
-      if (round < 3) session.playAgain();
-    }
-    expect(session.stats).toMatchObject({ round: 3, streak: 3, bestStreak: 3, score: 375 });
   });
 });

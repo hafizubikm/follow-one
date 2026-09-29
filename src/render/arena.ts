@@ -19,7 +19,7 @@ interface BallElement {
 }
 
 // Slot numbers sit this far beyond the ball's outer edge, on the side away from the center.
-const SLOT_NUMBER_GAP_PX = 10;
+export const SLOT_NUMBER_GAP_PX = 10;
 
 // Only this module turns arena units into pixels; everything upstream stays resolution-free (SPEC §4).
 // `underlay` (the countdown watermark) goes first, so it draws over the arena's face and under the balls.

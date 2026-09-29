@@ -122,6 +122,25 @@ fieldset.setting:disabled {
     0 1px 5px 3px rgb(var(--shadow) / 0.18);
 }
 
+/* ---------- radios drawn by their label: segments and swatches ---------- */
+
+/* The radio stays in the accessibility tree and takes focus; the label's content is what shows. */
+.segment input,
+.swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+fieldset:disabled .segment input,
+fieldset:disabled .swatch input {
+  cursor: not-allowed;
+}
+
 /* ---------- segmented choice (radio group) ---------- */
 
 .segmented {
@@ -136,17 +155,6 @@ fieldset.setting:disabled {
   position: relative;
   flex: 1 1 0;
   min-width: 0;
-}
-
-/* The radio stays in the accessibility tree and takes focus; the span is what shows. */
-.segment input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
 }
 
 .segment span {
@@ -178,10 +186,6 @@ fieldset.setting:disabled {
   outline-offset: 1px;
 }
 
-fieldset:disabled .segment input {
-  cursor: not-allowed;
-}
-
 fieldset:disabled .segment:hover span {
   color: var(--muted);
 }
@@ -208,16 +212,6 @@ legend.setting-head {
   place-items: center;
   width: 44px;
   height: 44px;
-}
-
-.swatch input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
 }
 
 .swatch-dot {
@@ -253,10 +247,6 @@ legend.setting-head {
 .swatch input:focus-visible + .swatch-dot {
   outline: 3px solid var(--focus);
   outline-offset: 6px;
-}
-
-fieldset:disabled .swatch input {
-  cursor: not-allowed;
 }
 
 /* ---------- switch ---------- */
