@@ -37,7 +37,7 @@ src/
     vec.ts
   render/
     dom.ts                tiny element helpers (el, aria-hidden icon)
-    header.ts             ⚙ settings button and title
+    header.ts             title and ⚙ settings button
     settingsPanel.ts      the settings drawer (§16)
     controls.ts           the drawer's form controls: slider row, segmented choice, switch, swatches
     arena.ts              arena element, ball elements, ring labels, ball visual states
@@ -161,8 +161,9 @@ Never use technical language ("tracking phase initiated", "select target entity"
 
 ## 4. Layout and responsiveness
 
-- Vertical stack: **header** (⚙ settings button at the left, then the title) → **HUD** (the current instruction; fixed height so nothing jumps) → **arena** → **stats strip** (Round · Score · Streak) or, after a round, the **result card**. Settings open in a drawer over the page (§16), never inside the gameplay area.
-- Arena diameter = `min(available width − padding, available height − chrome)`, capped at 640 px (`arenaMaxPx`) on desktop. Mobile portrait: nearly full width. Landscape phones: height-limited, still playable.
+- Vertical stack: **header** (the title, centered, then the ⚙ settings button at the right) → **HUD** (the current instruction; fixed height so nothing jumps) → **arena** → **stats strip** (Round · Score · Streak) or, after a round, the **result card**. Settings open in a drawer over the page (§16), never inside the gameplay area.
+- **Page column.** The whole stack shares one centered column, so ⚙ sits at the right end of the game's column, never at the window's edge. Column width = `min(W, (W + fullWidthMaxPx) / 2, arenaMaxPx)`, where `W` is the width between the side gutters: the full width on phones (up to `fullWidthMaxPx` = 432 px), then half of every extra pixel goes to the side margins, up to `arenaMaxPx` = 560 px on tablets and desktops. Nothing runs edge to edge on a desktop. (On landscape phones the result card runs wider than the column, so it hangs less below the arena.)
+- Arena diameter = `min(column width, available height − chrome)`. Mobile portrait: nearly full width. Landscape phones and short desktop windows: height-limited, still playable.
 - No horizontal scrolling in any state. Size elements correctly rather than hiding overflow.
 - Use `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and safe-area insets for header/footer padding.
 - No game overlay covers the balls during `TARGET_INTRO`, `COUNTDOWN`, `TRACKING` or `RETURNING` (the player may still open Settings over them). The countdown and the tracking timer are a watermark in the arena center, drawn behind the balls (§5).
@@ -209,7 +210,7 @@ interface NamePack { id: string; label: string; names: string[] } // ≥ ballCou
 
 **Rendering (recommended):** one absolutely positioned element per ball inside the arena, moved each frame with `transform: translate3d(...)` (compositor-only; even 30 elements are trivial at 60 fps). The same elements become `<button>`s in `SELECTION`, so there is no canvas↔DOM switch and no visual pop. Canvas 2D is acceptable for the motion phases only if the selection ring is a DOM overlay that matches the canvas drawing exactly.
 
-**Ball radius** depends on the round's ball count `n` and is fixed for the round: `r = max(ballRadiusMin, ballRadius × √(ballCount / n))`, where `ballRadius = 0.09` is the size at the default 15 balls. Fewer balls are larger, more are smaller, and the balls cover about the same share of the arena (≈12%) at every count; `ballRadiusMin = 0.065` is the smallest readable ball. That gives 10 balls ≈ 0.110, 15 = 0.090, 20 ≈ 0.078, 25 ≈ 0.070, 30 = 0.065. Sizes are normalized, so on screen they follow the arena diameter: 30 balls are ≈ 22 px across on a 343 px phone arena and ≈ 42 px on a 640 px desktop one. Every count spawns with room to spare and keeps a clear gap between neighbours on the ring (§7). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size. Where neighbouring hit areas overlap (small arenas, many balls), a pointer pick goes to the ball whose center is nearest the pointer.
+**Ball radius** depends on the round's ball count `n` and is fixed for the round: `r = max(ballRadiusMin, ballRadius × √(ballCount / n))`, where `ballRadius = 0.09` is the size at the default 15 balls. Fewer balls are larger, more are smaller, and the balls cover about the same share of the arena (≈12%) at every count; `ballRadiusMin = 0.065` is the smallest readable ball. That gives 10 balls ≈ 0.110, 15 = 0.090, 20 ≈ 0.078, 25 ≈ 0.070, 30 = 0.065. Sizes are normalized, so on screen they follow the arena diameter: 30 balls are ≈ 22 px across on a 343 px phone arena and ≈ 36 px on a 560 px desktop one. Every count spawns with room to spare and keeps a clear gap between neighbours on the ring (§7). Selection hit area is at least 44 × 44 px (`minHitPx`) regardless of drawn size. Where neighbouring hit areas overlap (small arenas, many balls), a pointer pick goes to the ball whose center is nearest the pointer.
 
 **Ball visual states** (color is never the only cue; `--ball` and `--target` are the colors chosen in Settings, §16):
 
@@ -358,7 +359,8 @@ export const config = {
   revealMs: 800,
 
   // layout
-  arenaMaxPx: 640,          // desktop cap on the arena diameter (§4)
+  arenaMaxPx: 560,          // cap on the page column and the arena diameter (§4)
+  fullWidthMaxPx: 432,      // full-width column up to this (phones); wider, half the extra goes to side margins (§4)
   minHitPx: 44,             // smallest ball hit area (§5)
 
   // sound
@@ -447,7 +449,7 @@ v1.1:
 - [ ] Hiding the tab mid-round pauses rather than desyncs; rotating/resizing mid-round rescales cleanly.
 
 **Settings**
-- [ ] ⚙ opens the drawer from the left; ✕, Esc and the backdrop close it; focus returns to ⚙; no horizontal scroll on phones.
+- [ ] ⚙ (at the right end of the header) opens the drawer from the right; ✕, Esc and the backdrop close it; focus returns to ⚙; no horizontal scroll on phones.
 - [ ] Balls (10–30, value shown), Speed (four presets), Duration (10–60 s, value shown), Ball color (5), Target color (4), Theme and Sound all work with pointer and keyboard.
 - [ ] All seven settings persist across reloads; a first visit gets 15 balls, Normal, 15 seconds, Blue, Red, System, sound on.
 - [ ] Ball count, speed, duration and colors are locked, with the note, from `TARGET_INTRO` through `REVEAL` and apply from the next round; theme and sound always work.
@@ -470,7 +472,7 @@ v1.1:
 **Layout**
 - [ ] No horizontal scrolling on any screen size.
 - [ ] Balls are visible and tappable (≥ 44 px hit area) on mobile.
-- [ ] Desktop arena is centered and the primary visual element.
+- [ ] The page is one centered column: full width on phones, clear side margins on wider windows, at most `arenaMaxPx` (560 px) on desktop, with ⚙ at its right end. The arena is the primary visual element.
 
 **Code**
 - [ ] All Vitest tests pass.
@@ -488,7 +490,7 @@ Difficulty levels beyond the ball-count and speed settings (and scoring by diffi
 
 A first-time player never needs Settings: the defaults are the standard game (15 balls, Normal speed, 15 seconds, Blue balls, Red target, System theme, sound on). Settings exist for customization, not as a step before playing.
 
-**Opening.** A small ⚙ button at the left end of the header (accessible name "Settings", ≥ 44 px hit area) opens the settings drawer: a modal `<dialog>` that slides in from the left over a subtle backdrop, with the game still visible behind it. It is about 360 px wide on desktop and nearly full width on phones, never wider than the viewport, and scrolls vertically when the viewport is short. ✕ ("Close settings"), Esc, or a click or tap on the backdrop closes it, and focus returns to ⚙. Opening Settings doesn't pause the round.
+**Opening.** A small ⚙ button at the right end of the header (accessible name "Settings", ≥ 44 px hit area) opens the settings drawer: a modal `<dialog>` that slides in from the right over a subtle backdrop, with the game still visible behind it. It is about 360 px wide on desktop and nearly full width on phones, never wider than the viewport, and scrolls vertically when the viewport is short. ✕ ("Close settings"), Esc, or a click or tap on the backdrop closes it, and focus returns to ⚙. Opening Settings doesn't pause the round.
 
 **Layout.** Compact, calm and modern, not an admin dashboard: two short sections, one row per setting, the same tokens as the rest of the game.
 - **Game.** Balls: a slider from `ballCountMin` (10) to `ballCountMax` (30) in steps of 1, with its value shown as "{n} balls". Speed: a segmented choice, Slow · Normal · Fast · Extreme. Duration: how long the balls move, a slider from 10 to 60 seconds in steps of 5 (`trackingMsMin`, `trackingMsMax`, `trackingMsStep`), shown as "{seconds} seconds".

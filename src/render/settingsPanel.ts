@@ -24,7 +24,7 @@ export interface SettingsPanelOptions {
 
 const CLOSE_ICON = 'M6 6l12 12M18 6L6 18';
 
-/** The settings drawer: a modal dialog from the left. ✕, Esc and the backdrop close it. */
+/** The settings drawer: a modal dialog from the right, beside ⚙. ✕, Esc and the backdrop close it. */
 export function createSettingsPanel(options: SettingsPanelOptions): SettingsPanel {
   const { settings, theme, sfx } = options;
   const text = copy.settings;

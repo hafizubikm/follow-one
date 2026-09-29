@@ -45,6 +45,7 @@ const reducedMotion = () => reducedMotionQuery.matches;
 const app = document.getElementById('app');
 if (!app) throw new Error('index.html is missing #app');
 app.style.setProperty('--arena-max', `${config.arenaMaxPx}px`);
+app.style.setProperty('--full-width-max', `${config.fullWidthMaxPx}px`);
 
 // Which sound each cue plays (SPEC §10).
 function playCue(event: GameEvent): void {

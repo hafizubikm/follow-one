@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--panel-w);
+  width: var(--column-w);
   height: var(--arena-size);
   margin-top: calc(var(--hud-h) + var(--stack-gap));
 }

@@ -354,3 +354,47 @@ Asked for after phase 8: a way to change the round's duration, and the countdown
 ### Known issues / notes
 - Google Fonts receives visitors' IP addresses and needs a connection; self-hosting the two woff2 files would avoid both (not done: the spec asks for Google Fonts).
 - Screen readers get the tracking seconds from the hidden timer on request, as before; the watermark itself is decorative.
+
+## 2026-09-29 — Layout: ⚙ on the right, page column, smaller desktop arena
+
+Asked for after phase 9: move ⚙ from the left to the right, and stop the "canvas" running full width on desktop, with a sensible width on every device. "Canvas" could mean the header (edge to edge on wide windows, ⚙ at the window's left edge) or the arena (640 px, only 40 px from the edges in a 720 px window); the answer was both. The drawer follows ⚙ to the right.
+
+### Spec edits
+- §4: the whole stack is one centered page column. Column width = `min(W, (W + fullWidthMaxPx) / 2, arenaMaxPx)`, W being the width between the gutters: full width on phones up to 432 px, then half of every extra pixel goes to the side margins, capped at 560 px. Arena diameter = `min(column, available height − chrome)`. Header: title centered, ⚙ at the right end.
+- §11: **default changed:** `arenaMaxPx` 640 → 560 (desktop arenas are 12.5% smaller; balls scale with them). New key `fullWidthMaxPx: 432`.
+- §16 and §14: ⚙ at the right end of the header; the drawer slides in from the right. The §14 Layout item "Desktop arena is centered…" now describes the column. §5: 30 balls are ≈ 36 px on a 560 px desktop arena (was 42 px on 640). §0: `header.ts` is "title and ⚙".
+
+### Done
+- `layout.css`: `--column-w` (the formula above) replaces `--panel-w`. Header, HUD, footer and the start slot take the column width; the arena takes `min(column, height left)`.
+  - `#app` is now an inline-size container, so the header measures the column exactly as the stage does.
+  - `--full-width-max` comes from config, like `--arena-max`.
+  - The fallback for browsers without container queries uses the same formula in viewport units.
+- Header: the title comes first in the DOM and ⚙ sits in the third grid column, so reading order matches the screen. ⚙ is still the first Tab stop.
+- Drawer: pinned to the right edge and slides in and out to the right. Its rounded corners and shadow are on the left; the safe-area padding is on the right.
+- Tests (188, was 186): `tests/config.test.ts` checks `config.ts` against the SPEC §11 block (it fails when a default changes in one but not the other; confirmed by bumping a spec value). It also checks the fluid band exists (`fullWidthMaxPx < arenaMaxPx`).
+
+### Verified in the browser (Browser pane for static layout; headless Chrome over the DevTools protocol for rounds, keys and the drawer's motion)
+- Column width matched the formula at 19 viewports. At each: header = HUD = footer, arena and title centered, ⚙ flush with the column's right end, no horizontal overflow.
+  - 320, 375 and 430 px phones: full width (16 px margins).
+  - 480 → 440 (20 px margins); 600 → 500 (50); 720 → 560 (80); 768 → 560 (104).
+  - 1280×800, 1440×900, 1920×1080 → 560 (were 588/640/640). 1024×768 → arena 556 (height-limited).
+  - 1366×650 → arena 438 in a 560 column. Landscape 812×375 → arena 215, column 560; 568×320 → arena 160, column 484 (start card fits, no scroll).
+- Full rounds at 1440×900 light, 1920×1080 dark, 1280×650 light, 720×900 light, 768×1024 dark, 375×812 dark, 360×740 light, 320×568 light, 812×375 light and 568×320 dark:
+  - the column held through intro and selection;
+  - slot numbers stayed on screen and hit areas were ≥ 44 px (50 px on desktop, neighbours 99 px apart at 15 balls);
+  - after picking Ball 1, the result card was fully visible with focus on Play Again. The page scrolled 93, 31 and 54 px at 1280×650, 812×375 and 568×320, so scrolling still works with `#app` as a container;
+  - Play Again went back to the top. No console errors.
+- Drawer: at every size its right edge is the viewport's. At 1280 px it opens 1090 → 920 px and closes 920 → 1280 px, with no horizontal overflow on any frame. Reduced motion shows and hides it at once. The backdrop (✕ below 360 px, where the drawer is full width) closes it and focus returns to ⚙.
+- Keyboard: Tab → ⚙ → Start Game; Enter on ⚙ opens the drawer with focus on ✕; Esc closes it and focus returns to ⚙.
+- Production build from `file://`: same layout, a full round at 320×568, no console errors.
+
+### SPEC §14 items touched
+- Verified:
+  - ⚙ (right end of the header) opens the drawer from the right; ✕, Esc and the backdrop close it; focus returns to ⚙; no horizontal scroll on phones.
+  - No horizontal scrolling at 19 sizes; hit areas ≥ 44 px.
+  - One centered page column: full width on phones, side margins beyond, 560 px cap on desktop, ⚙ at its right end, the arena the primary visual element.
+  - Resizing mid-round rescales cleanly: during tracking, 1440×900 → 600×900 → 375×812 took the arena from 560 → 500 → 343 px with the column; every ball stayed inside; no overflow.
+  - All tests pass.
+
+### Known issues / notes
+- Pre-existing, not caused by this change: at 320×568, when the "Not quite!" sub-line wraps to an extra line, the result card and the arena don't both fit. The page scrolls 136 px and the arena's top ends up 4 px above the viewport, while §4 wants the arena whole. A build of the previous commit does the same; the column at that width is unchanged (288 px).

@@ -1,28 +1,28 @@
-/* ---------- the settings drawer (SPEC §16): a modal dialog sliding in from the left ---------- */
+/* ---------- the settings drawer (SPEC §16): a modal dialog sliding in from the right, beside ⚙ ---------- */
 
 .settings {
   --pad: 20px;
 
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: 0 0 0 auto;
   width: min(360px, 100vw - 40px);
   max-width: 100vw;
   height: 100%;
   max-height: none;
   margin: 0;
-  padding: max(var(--pad), env(safe-area-inset-top)) var(--pad) max(var(--pad), env(safe-area-inset-bottom))
-    max(var(--pad), env(safe-area-inset-left));
+  padding: max(var(--pad), env(safe-area-inset-top)) max(var(--pad), env(safe-area-inset-right))
+    max(var(--pad), env(safe-area-inset-bottom)) var(--pad);
   border: 0;
-  border-radius: 0 24px 24px 0;
+  border-radius: 24px 0 0 24px;
   background: var(--surface);
   color: var(--text);
   box-shadow:
     0 0 0 1px var(--border),
-    16px 0 48px rgb(var(--shadow) / 0.2);
+    -16px 0 48px rgb(var(--shadow) / 0.2);
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Closed, it rests off-screen to the left, so it slides both ways where discrete transitions exist. */
-  transform: translateX(-100%);
+  /* Closed, it rests off-screen to the right, so it slides both ways where discrete transitions exist. */
+  transform: translateX(100%);
   transition:
     transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
     overlay 240ms allow-discrete,
@@ -35,7 +35,7 @@
 
 @starting-style {
   .settings[open] {
-    transform: translateX(-100%);
+    transform: translateX(100%);
   }
 }
 

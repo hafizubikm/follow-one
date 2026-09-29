@@ -7,7 +7,7 @@ export interface Header {
   readonly settingsButton: HTMLButtonElement;
 }
 
-/** ⚙ at the left, then the title (SPEC §4). The other controls live in the settings drawer. */
+/** The title, then ⚙ at the right end (SPEC §4). The other controls live in the settings drawer. */
 export function createHeader(onOpenSettings: () => void): Header {
   const header = el('header', 'header');
   const button = el('button', 'settings-button');
@@ -16,7 +16,7 @@ export function createHeader(onOpenSettings: () => void): Header {
   button.setAttribute('aria-haspopup', 'dialog');
   button.append(lineIcon(gearPath()));
   button.addEventListener('click', onOpenSettings);
-  header.append(button, el('span', 'brand', copy.title));
+  header.append(el('span', 'brand', copy.title), button);
   return { el: header, settingsButton: button };
 }
 

@@ -43,7 +43,8 @@ export const config = {
   revealMs: 800,
 
   // layout
-  arenaMaxPx: 640, // desktop cap on the arena diameter (§4)
+  arenaMaxPx: 560, // cap on the page column and the arena diameter (§4)
+  fullWidthMaxPx: 432, // full-width column up to this (phones); wider, half the extra goes to side margins (§4)
   minHitPx: 44, // smallest ball hit area (§5)
 
   // sound

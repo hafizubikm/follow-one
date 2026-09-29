@@ -1,9 +1,12 @@
-/* ⚙ at the left, the title centered over the arena; the third column balances the first. */
+/* The page column's top row: the title centered over the arena, ⚙ at the right end; the empty first
+   column balances the third. */
 .header {
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
+  justify-self: center;
   gap: 8px;
+  width: var(--column-w);
   padding-block: max(8px, env(safe-area-inset-top)) 8px;
 }
 
@@ -30,6 +33,7 @@
 }
 
 .brand {
+  grid-column: 2;
   display: inline-flex;
   align-items: center;
   justify-self: center;

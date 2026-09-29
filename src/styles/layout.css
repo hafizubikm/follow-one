@@ -1,5 +1,5 @@
-/* Page shell (SPEC §4): header, then a stage stacking HUD → arena → footer. The header spans the
-   whole width (⚙ at the left edge); the stage centers its column, sized by --arena-size and --panel-w. */
+/* Page shell (SPEC §4): header, then a stage stacking HUD → arena → footer, all in one centered column
+   (--column-w). #app is an inline-size container so the header measures that column as the stage does. */
 #app {
   --gutter: 16px;
   --hud-h: 64px;
@@ -7,6 +7,7 @@
   --stack-gap: 12px;
   --arena-min: 120px;
 
+  container-type: inline-size;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
@@ -31,22 +32,38 @@
   padding-bottom: 8px;
 }
 
-/* Arena diameter = min(width, height left after HUD and footer), capped; computed identically in every state. */
+/* The column: the full width between the gutters up to --full-width-max (phones), then half of every
+   extra pixel goes to the side margins, up to --arena-max. 100cqw is that width in the header and the stage alike. */
+.header,
+.stage > *,
+.start-screen > * {
+  --column-w: min(100cqw, (100cqw + var(--full-width-max)) / 2, var(--arena-max));
+}
+
+/* Arena diameter = min(column, height left after HUD and footer); computed identically in every state. */
 .stage > *,
 .start-screen > * {
   --arena-size: max(
     var(--arena-min),
-    min(100cqw, 100cqh - var(--hud-h) - var(--footer-h) - 2 * var(--stack-gap), var(--arena-max))
+    min(var(--column-w), 100cqh - var(--hud-h) - var(--footer-h) - 2 * var(--stack-gap))
   );
-  --panel-w: min(100cqw, max(var(--arena-size), 32rem));
   flex: none;
 }
 
 @supports not (width: 1cqw) {
+  .header,
   .stage > *,
   .start-screen > * {
-    --arena-size: min(100vw - 2 * var(--gutter), 100vh - 220px, var(--arena-max));
-    --panel-w: min(100vw - 2 * var(--gutter), max(var(--arena-size), 32rem));
+    --column-w: min(
+      100vw - 2 * var(--gutter),
+      (100vw - 2 * var(--gutter) + var(--full-width-max)) / 2,
+      var(--arena-max)
+    );
+  }
+
+  .stage > *,
+  .start-screen > * {
+    --arena-size: min(var(--column-w), 100vh - 220px);
   }
 }
 
@@ -54,7 +71,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--panel-w);
+  width: var(--column-w);
   height: var(--footer-h);
 }
 

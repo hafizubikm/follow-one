@@ -3,7 +3,7 @@
 .hud {
   display: grid;
   place-items: center;
-  width: var(--panel-w);
+  width: var(--column-w);
   height: var(--hud-h);
   padding-inline: 8px;
 }
