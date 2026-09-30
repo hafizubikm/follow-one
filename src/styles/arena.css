@@ -87,18 +87,23 @@
   transition: transform 120ms ease;
 }
 
-/* Selection: every ball reacts the same way to hover, press and keyboard focus (SPEC §8). */
+/* Selection: every ball reacts the same way to hover, press and keyboard focus (SPEC §8). A ball that is
+   already picked can't be picked again, so it stops reacting. */
 .arena[data-input='live'] .ball {
   cursor: pointer;
 }
 
+.arena[data-input='live'] .ball[data-look='picked'] {
+  cursor: default;
+}
+
 @media (hover: hover) {
-  .arena[data-input='live'] .ball:hover .ball-body {
+  .arena[data-input='live'] .ball:not([data-look='picked']):hover .ball-body {
     transform: scale(1.1);
   }
 }
 
-.arena[data-input='live'] .ball:active .ball-body {
+.arena[data-input='live'] .ball:not([data-look='picked']):active .ball-body {
   transform: scale(0.92);
 }
 
@@ -180,7 +185,7 @@
   color: var(--target-ink);
 }
 
-/* picked (checking) and a wrong pick keep the ball color and get a 3 px ring in --text. */
+/* A picked ball (from its pick through checking) and a wrong pick keep the ball color and get a 3 px ring in --text. */
 .ball:is([data-look='picked'], [data-look='revealed-wrong-pick']) .ball-body {
   box-shadow: var(--shade), var(--rim), 0 0 0 3px var(--text), var(--lift);
 }

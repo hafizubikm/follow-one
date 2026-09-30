@@ -21,13 +21,13 @@ describe('session: picking (SPEC §8)', () => {
     expect(session.state).toBe('CHECKING');
     expect(session.selectionLive).toBe(false);
     expect(session.pick(4)).toBe(false);
-    expect(session.pickedId).toBe(3);
+    expect(session.pickedIds).toEqual([3]);
   });
 
   it('never goes live when the settle is over but the state has moved on', () => {
     const driven = started();
     toLiveSelection(driven);
-    driven.session.pick(driven.session.round!.targetId);
+    driven.session.pick(driven.session.round!.targetIds[0]);
     driven.run(steps(config.suspenseMs) - 1);
     expect(driven.session.state).toBe('CHECKING');
     expect(driven.session.selectionLive).toBe(false);
@@ -37,7 +37,7 @@ describe('session: picking (SPEC §8)', () => {
     const driven = started();
     const { session, events } = driven;
     toLiveSelection(driven);
-    session.pick(session.round!.targetId);
+    session.pick(session.round!.targetIds[0]);
     driven.run(steps(config.suspenseMs) - 1);
     expect(session.stats.score).toBe(0); // not before REVEAL
     driven.run(1);
@@ -62,7 +62,7 @@ describe('session: picking (SPEC §8)', () => {
     const driven = started();
     const { session } = driven;
     toLiveSelection(driven);
-    session.pick(session.round!.targetId);
+    session.pick(session.round!.targetIds[0]);
     driven.runUntil('RESULT');
     driven.run(10_000);
     expect(session.state).toBe('RESULT');
@@ -72,7 +72,7 @@ describe('session: picking (SPEC §8)', () => {
     expect(session.state).toBe('TARGET_INTRO');
     expect(session.round).not.toBe(previous);
     expect(session.round!.balls.every((b) => b.slot === null)).toBe(true);
-    expect(session.pickedId).toBeNull();
+    expect(session.pickedIds).toEqual([]);
     expect(session.stats).toMatchObject({ round: 2, correct: 1, score: 100 });
   });
 
@@ -81,7 +81,7 @@ describe('session: picking (SPEC §8)', () => {
     const { session } = driven;
     for (let round = 1; round <= 3; round++) {
       toLiveSelection(driven);
-      session.pick(session.round!.targetId);
+      session.pick(session.round!.targetIds[0]);
       driven.runUntil('RESULT');
       if (round < 3) session.playAgain();
     }
@@ -97,7 +97,7 @@ describe('session: the saved best streak (SPEC §9)', () => {
   const answer = (driven: Driven, correct: boolean) => {
     const { session } = driven;
     toLiveSelection(driven);
-    session.pick(correct ? session.round!.targetId : wrongId(session));
+    session.pick(correct ? session.round!.targetIds[0] : wrongId(session));
     driven.runUntil('RESULT');
   };
 
@@ -119,7 +119,7 @@ describe('session: the saved best streak (SPEC §9)', () => {
 
     session.playAgain();
     toLiveSelection(driven);
-    session.pick(session.round!.targetId);
+    session.pick(session.round!.targetIds[0]);
     driven.run(steps(config.suspenseMs) - 1);
     expect(store.data[key]).toBe('{"bestStreak":1}');
     driven.run(1);

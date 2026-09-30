@@ -5,9 +5,12 @@ export const copy = {
 
   start: {
     tagline: 'Can you keep your eyes on one ball while everything gets chaotic?',
-    // {n}: the ball-count setting; {seconds}: trackingMs in seconds.
-    meta: '{n} balls · {seconds} seconds · 1 target',
+    taglineSeveral: 'Can you keep your eyes on {k} balls while everything gets chaotic?',
+    // {n}: the ball-count setting; {seconds}: trackingMs in seconds; {targets}: targetCount below, for the setting.
+    meta: '{n} balls · {seconds} seconds · {targets}',
+    targetCount: { one: '1 target', several: '{k} targets' },
     help: "You'll be given a named ball. Keep track of it while the balls move and collide. At the end, find your target.",
+    helpSeveral: "You'll be shown {k} balls to follow. Keep track of them while the balls move and collide. At the end, find them all.",
     button: 'Start Game',
   },
 
@@ -20,6 +23,13 @@ export const copy = {
     returning: 'Getting into position...',
     selection: 'Which one was {name}?',
     checking: 'Checking...',
+    // With two or more targets ({k}) nothing is named (SPEC §1); {left}: picks still to make.
+    several: {
+      intro: 'You have **{k} targets**. Keep your eyes on them.',
+      tracking: 'Keep your eyes on all {k}',
+      selection: 'Which {k} were your targets?',
+      picksLeft: 'Pick {left} more',
+    },
   },
 
   /** Shown large in the arena after the countdown numerals (SPEC §5). */
@@ -28,12 +38,19 @@ export const copy = {
   /** On balls (SPEC §5); `chosen` marks the chosen color swatch (SPEC §16). */
   glyphs: { target: '★', correct: '✓', wrong: '✕', chosen: '✓' },
 
-  /** A ball's accessible name while it can be picked (SPEC §8). */
+  /** A ball's accessible name while the ring is reachable, and once it has been picked (SPEC §8). */
   ball: 'Ball {slot}',
+  ballPicked: 'Ball {slot}, picked',
 
+  // sublineSeveral: with two or more targets ({k}), {found} of them picked.
   result: {
-    correct: { icon: '🎯', headline: 'Nailed it!', subline: 'You found {name}.' },
-    incorrect: { icon: '👀', headline: 'Not quite!', subline: 'You picked {picked} (#{pickedSlot}). {name} was #{targetSlot}.' },
+    correct: { icon: '🎯', headline: 'Nailed it!', subline: 'You found {name}.', sublineSeveral: 'You found all {k} targets.' },
+    incorrect: {
+      icon: '👀',
+      headline: 'Not quite!',
+      subline: 'You picked {picked} (#{pickedSlot}). {name} was #{targetSlot}.',
+      sublineSeveral: 'You found {found} of {k} targets.',
+    },
     playAgain: 'Play Again',
   },
 
@@ -43,6 +60,8 @@ export const copy = {
     close: 'Close settings',
     sections: { game: 'Game', appearance: 'Appearance' },
     balls: { label: 'Balls', value: '{n} balls' },
+    /** Its options are the numbers targetCountMin..targetCountMax. */
+    targets: { label: 'Targets' },
     speed: { label: 'Speed', options: { slow: 'Slow', normal: 'Normal', fast: 'Fast', extreme: 'Extreme' } },
     duration: { label: 'Duration', value: '{seconds} seconds' },
     ballColor: {
@@ -72,6 +91,11 @@ export const copy = {
 export const countdownNumerals: readonly string[] = Array.from({ length: config.countdownFrom }, (_, i) =>
   String(config.countdownFrom - i),
 );
+
+/** "1 target" or "{k} targets", for the start screen's meta line. */
+export function targetCountText(k: number): string {
+  return k === 1 ? copy.start.targetCount.one : fill(copy.start.targetCount.several, { k });
+}
 
 /** Replaces each {key} in a copy template. */
 export function fill(template: string, values: Readonly<Record<string, string | number>>): string {

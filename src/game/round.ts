@@ -2,7 +2,7 @@ import { config, type Config } from '../config.ts';
 import { getPack } from '../names/packs.ts';
 import { randomUnit } from '../physics/vec.ts';
 import type { Body, PhysicsParams } from '../physics/world.ts';
-import { randomBetween, randomInt, shuffle } from '../util/random.ts';
+import { randomBetween, shuffle } from '../util/random.ts';
 import { ringRadiusFor } from './slots.ts';
 
 export interface Ball extends Body {
@@ -14,7 +14,8 @@ export interface Ball extends Body {
 
 export interface Round {
   readonly balls: Ball[];
-  readonly targetId: number;
+  /** The balls to follow: targetCount distinct ids (SPEC §2.4). */
+  readonly targetIds: readonly number[];
   readonly namePackId: string;
   /** Every ball's radius this round (SPEC §5). */
   readonly ballRadius: number;
@@ -29,12 +30,14 @@ export interface Round {
 /** What the player's settings decide about a round; read once, when it is built (SPEC §2.6). */
 export interface RoundSetup {
   readonly ballCount: number;
+  readonly targetCount: number;
   readonly speedFactor: number;
   readonly trackingMs: number;
 }
 
 export const defaultSetup: RoundSetup = {
   ballCount: config.ballCount,
+  targetCount: config.targetCount,
   speedFactor: config.speedPresets[config.speedPreset],
   trackingMs: config.trackingMs,
 };
@@ -67,12 +70,15 @@ export function roundPhysics(round: Pick<Round, 'speedFactor'>, settings: Config
   };
 }
 
-/** Everything random about a round is drawn fresh here: layout, velocities, names, target (SPEC §2.4). */
+/** Everything random about a round is drawn fresh here: layout, velocities, names, targets (SPEC §2.4). */
 export function createRound(setup: RoundSetup = defaultSetup, settings: Config = config): Round {
   const count = setup.ballCount;
   const pack = getPack(settings.namePackId);
   if (pack.names.length < count) {
     throw new Error(`Name pack "${pack.id}" has fewer than ${count} names`);
+  }
+  if (!Number.isInteger(setup.targetCount) || setup.targetCount < 1 || setup.targetCount >= count) {
+    throw new Error(`Cannot follow ${setup.targetCount} of ${count} balls`);
   }
   // The pack lists its most familiar names first, so smaller games use those (SPEC §5).
   const names = shuffle(pack.names.slice(0, count));
@@ -85,7 +91,8 @@ export function createRound(setup: RoundSetup = defaultSetup, settings: Config =
   });
   return {
     balls: bodies.map((body, id): Ball => ({ ...body, id, name: names[id], slot: null })),
-    targetId: randomInt(count),
+    // The start of a shuffle of the ids: every set of targetCount balls is equally likely.
+    targetIds: shuffle(bodies.map((_, id) => id)).slice(0, setup.targetCount),
     namePackId: pack.id,
     ballRadius,
     ringRadius: ringRadiusFor(ballRadius, settings),

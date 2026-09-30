@@ -38,6 +38,15 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     (n) => fill(text.balls.value, { n }),
     (ballCount) => change({ ballCount }),
   );
+  const targetCounts = Array.from({ length: config.targetCountMax - config.targetCountMin + 1 }, (_, i) =>
+    String(config.targetCountMin + i),
+  );
+  const targets = segmentedChoice(
+    text.targets.label,
+    Object.fromEntries(targetCounts.map((count) => [count, count])),
+    String(settings.current.targetCount),
+    (next) => change({ targetCount: Number(next) }),
+  );
   const speed = segmentedChoice(text.speed.label, text.speed.options, settings.current.speed, (next) =>
     change({ speed: next }),
   );
@@ -103,7 +112,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
   dialog.append(
     head,
     note,
-    section('game', text.sections.game, balls.el, speed.el, duration.el),
+    section('game', text.sections.game, balls.el, targets.el, speed.el, duration.el),
     section('appearance', text.sections.appearance, ballColor.el, targetColor.el, themeChoice.el, sound),
   );
 
@@ -135,6 +144,7 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     setLocked(locked) {
       note.hidden = !locked;
       balls.setDisabled(locked);
+      targets.setDisabled(locked);
       speed.setDisabled(locked);
       duration.setDisabled(locked);
       ballColor.setDisabled(locked);

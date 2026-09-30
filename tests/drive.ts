@@ -1,5 +1,5 @@
 import { config, type Config } from '../src/config.ts';
-import type { RoundSetup } from '../src/game/round.ts';
+import { defaultSetup, type RoundSetup } from '../src/game/round.ts';
 import type { SavedBest } from '../src/game/score.ts';
 import { createSession, type GameEvent, type Session } from '../src/game/session.ts';
 import type { GameState } from '../src/game/stateMachine.ts';
@@ -18,8 +18,8 @@ export interface Driven {
 }
 
 /**
- * A session in strict mode with Start Game already pressed; `setup` gives each round's ball count and speed,
- * `savedBest` the best streak kept between visits.
+ * A session in strict mode with Start Game already pressed; `setup` gives each round's ball count, target count,
+ * speed and duration, `savedBest` the best streak kept between visits.
  */
 export function started(settings: Config = config, setup?: () => RoundSetup, savedBest?: SavedBest): Driven {
   const events: Driven['events'] = [];
@@ -67,8 +67,24 @@ export function toLiveSelection(driven: Driven): void {
   if (!driven.session.selectionLive) throw new Error('selection did not go live');
 }
 
-export function wrongId(session: Session): number {
+/** The ids of the round's balls that aren't targets. */
+export function wrongIds(session: Session): number[] {
   const round = session.round;
   if (!round) throw new Error('no round');
-  return (round.targetId + 1) % round.balls.length;
+  return round.balls.map((ball) => ball.id).filter((id) => !round.targetIds.includes(id));
+}
+
+export function wrongId(session: Session): number {
+  return wrongIds(session)[0];
+}
+
+/** Picks that find `found` of the round's targets; the rest of the picks go to balls that aren't targets. */
+export function picksFinding(driven: Driven, found: number): number[] {
+  const { targetIds } = driven.session.round!;
+  return [...targetIds.slice(0, found), ...wrongIds(driven.session).slice(0, targetIds.length - found)];
+}
+
+/** A session started with `targetCount` targets per round (and `ballCount` balls). */
+export function startedWith(targetCount: number, ballCount: number = config.ballCount): Driven {
+  return started(config, () => ({ ...defaultSetup, ballCount, targetCount }));
 }

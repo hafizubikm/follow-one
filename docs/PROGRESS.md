@@ -726,3 +726,62 @@ Asked for after the favicon: "complete if anything left". Three things were left
 - The large totals keep room for long sessions, with 3-digit rounds, 5-digit scores and 2-digit streaks. On windows 481–680 px wide and up to 760 px tall that costs 3–19 px of arena in every round, even before the numbers grow.
 - On arenas under ~190 px (windows 300–420 px tall), the bottom slot number's 12 px box overlaps the card's top edge by 1–3 px, because the 8 px gap under the arena is smaller than the number's reach there. Of these 158 grid sizes, 75 had it before with the same arena. At the other 83 (≤ 500 × 420 px) the arena shrank to fit: 65 had the arena's top clipped before, by up to 136 px, and 18 (460–500 px wide, 300–400 px tall) had a whole arena but the top slot number cut off (computed from the ring geometry; the old grid didn't measure the numbers).
 - The scratch scripts (grid sweep, checks, screenshots) live in this session's scratchpad, not the repo.
+
+## 2026-09-30 — Spec v1.2 and Phase 12: Several targets
+
+Asked for: "make this game bit complex": let the player choose to follow one, two or more balls at a time, as a setting, with the docs updated first. "Multiple targets" was out of scope in §15; it is in now.
+
+### Decisions made while specifying (not asked; each is easy to change)
+- **Targets: 1–5, default 1**, a segmented choice in the Game section. Five is half of the smallest game (10 balls), so every combination with Balls is playable and no setting has to limit another.
+- **One target plays exactly as before**: same copy, names, flow and points.
+- **Several targets have no names.** They are followed as a group: ★, the target color and the pulse mark them; the HUD counts them ("You have **3 targets**…"). Names on up to five balls would cover their neighbours, up to ten names would collide on the ring at the reveal, and a sub-line naming five balls would have grown the room every arena reserves for the result card.
+- **Picking**: as many picks as targets, one at a time. Each pick is final (no taking it back) and outlined at once; the last one locks input. The HUD counts down: "Which 3 were your targets?", "Pick 2 more", "Pick 1 more".
+- **Scoring**: 100 per target found. A round is correct only when every target was found; that keeps the streak and adds the streak bonus per target (three targets: 300, 375, 450…). A round with a miss resets the streak and still scores the targets found. Accuracy is now targets found ÷ targets shown, which for one target is the old share of correct rounds.
+- The start screen's tagline, meta line and help sentence follow the setting; the title stays Follow One.
+
+### Spec edits (before any code)
+- Title v1.2; pitch; §1 "Several targets" paragraph; §2.1–2.6 reworded for targets, plus §2.7 "Picks say nothing" (the outline is the same on a right and a wrong pick).
+- §3: new rows for the several-target tagline, help, intro, tracking, selection, picks left and both sub-lines; "Target count" (1 target · {k} targets); "Targets setting".
+- §5: `Round.targetIds`; the visual-state table says when each state applies with several targets; names only with one target.
+- §8: picks are final, "Ball {slot}, picked", the last pick locks. §9: scoring per target, `found`/`targets` stats, accuracy.
+- §11 new keys: `targetCount: 1`, `targetCountMin: 1`, `targetCountMax: 5`. No existing default changed.
+- §12, §14, §16: target count is built into the round, locked and persisted with the rest ("all eight settings"). §13: phase 12. §15: "multiple targets" removed.
+- CLAUDE.md: the one-line description and the hard rules (targetIds, every target indistinguishable, a pick never shows whether it is a target, the last pick locks input, target count locked).
+
+### Done
+- `config.ts`, `copy.ts` (`targetCountText`, the several-target copy, `ballPicked`), `settings/settings.ts` (`targetCount`, `clampTargetCount`, in `roundSetup`).
+- `game/round.ts`: `targetIds` = the first `targetCount` ids of a Fisher–Yates shuffle; a round refuses 0 targets or nothing but targets.
+- `game/score.ts`: an answer is `{ found, targets }`; `isCorrect`, `pointsFor`, `recordAnswer`, accuracy by targets.
+- `game/session.ts`: `pickedIds`; a pick counts only on a ball not picked yet; the round's last pick moves to CHECKING; `foundTargets`.
+- `game/view.ts`: HUD lines by name (one target) or by count (several); every target highlighted; a pick is outlined from the moment it is made; ✓ / ★ / ✕ at the reveal; no labels with several targets; "Ball {slot}, picked"; the result card's several-target sub-lines.
+- Drawer: the Targets row between Balls and Speed, locked mid-round with the others. Start screen: tagline, meta and help follow it.
+- `arena.css`: a picked ball stops reacting to hover and press and shows the default cursor.
+- Tests (275, was 233):
+  - rounds: `targetCount` distinct ids for every count at 10, 15 and 30 balls; every ball a target equally often, every pair equally often (30 000 rounds of 3 of 10), and 5 of 30; impossible counts refused;
+  - scoring per target, streak bonus per target, accuracy by targets, streaks across target counts;
+  - settings: clamping, per-field validation, persistence, round setup;
+  - session: exactly k picks for k = 1…5, picks final, waits for the last pick, scores only at REVEAL, any pick order, partial rounds;
+  - views: HUD lines and picks-left countdown, highlight and fade of every target, outline and "picked" name, reveal looks, no names, result card;
+  - fairness: step by step through selection no target differs from any other ball (2 and 5 targets), and a picked target is shown exactly as a picked non-target until REVEAL;
+  - copy: every new §3 row.
+  - Mutation check: names shown with several targets, a ball picked twice, the outline only while checking, a bonus not per target, targets = the first ids, a picked target leaking a glyph, locking after the first pick, accuracy by rounds, an unclamped count and a missing "picked" name each fail the suite.
+
+### Verified in the browser (headless Chrome over the DevTools protocol; the Browser pane was hidden)
+90 checks, all passing on the dev server and on the production build from `/dist/`; the first 57 also from `file://`.
+- Drawer at 1280×800: a first visit shows "15 balls · 15 seconds · 1 target" with nothing stored. Game rows are Balls, Targets, Speed, Duration; Targets offers 1–5. A click on 3 and arrow keys both change it, with a focus ring; the tagline, meta and help follow; it is stored and survives a reload. Mid-round it is disabled under the note and a click changes nothing; in RESULT it is live.
+- Round, 3 targets, all found (1280×800 light): intro "You have **3 targets**. Keep your eyes on them."; three balls with ★, the target color and the pulse, no label on any ball. After the fade and again in selection every ball's markup and computed fill, rim, glyph ink, size, z-index and pulse are identical. First pick: outlined, "Ball 13, picked", HUD "Pick 2 more", input still live, default cursor on it and a pointer on the rest; picking it again does nothing. Third pick: "Checking...", every ball `aria-disabled`, a fourth pick ignored. Reveal ✓✓✓, "Nailed it!", "You found all 3 targets.", Score 300, Accuracy 100%, Streak 1.
+- Round 2, 2 of 3: the two picked balls (one target, one not) have identical markup; reveal ✓ ✓ ★ ✕; "You found 2 of 3 targets."; Score 500, Accuracy 83%, Streak 0, Best 1 (saved).
+- 375×812 dark, 30 balls at Extreme, 5 targets, cyan/yellow: HUD on two lines inside its box; two picks by tap (overlapping hit areas, nearest ball wins), three by keyboard (Tab into the ring, arrows, Enter and Space), focus kept on each picked ball and through the lock. "You found 4 of 5 targets.", Score 400, Accuracy 80%; card and whole arena on screen.
+- Back to 1 target through the drawer in RESULT: the arena keeps the 5-target reveal until Play Again; then the round names its target in the HUD and on its label, the first pick locks input, "You found Delta.", Score 500, Accuracy 83% (5 of 6).
+- 320×568, 812×375, 568×320 with 5 targets of 10: the start screen doesn't scroll or overflow, the drawer fits with unclipped segments (≥ 54 px each), the intro HUD is at most two lines. At 320×568 a full round: card and arena both on screen.
+- Reduced motion: four targets with a still halo, nothing animating. No console errors in any run.
+
+### SPEC §14 items touched
+- Verified: targets shown highlighted before the countdown (named with one, unnamed with several); exactly as many picks as targets, each ball once; input locks after the last pick, picks-left countdown and outlines; correct and incorrect results with the right copy and glyphs; score, streak, best streak, accuracy and round; every target's highlight gone by the end of the fade; nothing distinguishes a target during motion, returning or selection, and a picked ball looks the same either way; targets re-randomized and uniform at every count; target count can't change mid-round; Targets works with pointer and keyboard, persists, first visit gets 1; keyboard-only picking with visible focus; HUD lines through the live region; every state keeps a glyph; no horizontal scrolling; all tests pass.
+- Not re-walked: physics, sound, colors, countdown/cursor/typography (untouched by this phase), and the 48-round matrix and layout grids of phases 11 and the leftovers.
+
+### Known issues / notes
+- `game/view.ts` is 304 lines, at the ~300 guideline.
+- The best streak is one number for every target count, as it already is for every ball count and speed; a streak of 5-target rounds and one of 1-target rounds count the same.
+- There is no sound on a pick (§10 lists none); the outline and the HUD count are the feedback.
+- With one target, the picked ball's accessible name now also becomes "Ball {slot}, picked" while "Checking..." shows.

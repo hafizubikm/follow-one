@@ -2,7 +2,7 @@ import { config, type Config } from '../config.ts';
 import type { Vec } from '../physics/vec.ts';
 import { stepWorld, type PhysicsParams } from '../physics/world.ts';
 import { createRound, defaultSetup, roundPhysics, type Round, type RoundSetup } from './round.ts';
-import { createStats, recordAnswer, startRound, type SavedBest, type Stats } from './score.ts';
+import { createStats, isCorrect, recordAnswer, startRound, type Answer, type SavedBest, type Stats } from './score.ts';
 import { assignSlots, glidePoint, slotPosition } from './slots.ts';
 import { createStateMachine, phaseDurationMs, type GameState } from './stateMachine.ts';
 
@@ -19,7 +19,7 @@ export interface SessionOptions {
   readonly strict: boolean;
   /** Read when a state that depends on it begins (SPEC §10). */
   reducedMotion(): boolean;
-  /** The player's ball count and speed, read once as each round is built (SPEC §2.6); defaults if absent. */
+  /** The player's ball count, target count, speed and duration, read once as each round is built (SPEC §2.6); defaults if absent. */
   setup?(): RoundSetup;
   /** The best streak kept between visits (SPEC §9): read as each round is built, recorded at REVEAL. */
   readonly savedBest?: SavedBest;
@@ -34,15 +34,15 @@ export interface Session {
   readonly durationMs: number | null;
   readonly round: Round | null;
   readonly stats: Stats;
-  /** The picked ball's id, from the pick until the next round. */
-  readonly pickedId: number | null;
-  /** Ball input is live: SELECTION, past settleMs, nothing picked yet (SPEC §8). */
+  /** The picked balls' ids in pick order, from the first pick until the next round. */
+  readonly pickedIds: readonly number[];
+  /** Ball input is live: SELECTION, past settleMs, picks still to make (SPEC §8). */
   readonly selectionLive: boolean;
   /** Ball positions between the last two steps (alpha 0 = previous step, 1 = latest), for smooth rendering. */
   positions(alpha: number): Vec[];
   /** Start Game. Does nothing (returns false) outside IDLE. */
   start(): boolean;
-  /** The player's pick. Only the first one while selection is live counts. */
+  /** A pick. Counts only while selection is live and on a ball not picked yet; the round's last one locks input. */
   pick(id: number): boolean;
   /** Play Again. Does nothing (returns false) outside RESULT. */
   playAgain(): boolean;
@@ -56,7 +56,7 @@ export function createSession(options: SessionOptions, settings: Config = config
   let round: Round | null = null;
   let physics: PhysicsParams = roundPhysics(defaultSetup, settings);
   let stats = createStats();
-  let pickedId: number | null = null;
+  let pickedIds: number[] = [];
   let prevX = new Float64Array(0);
   let prevY = new Float64Array(0);
   let glideFrom: Vec[] = [];
@@ -74,7 +74,7 @@ export function createSession(options: SessionOptions, settings: Config = config
       round = createRound(options.setup?.() ?? defaultSetup, settings);
       physics = roundPhysics(round, settings);
       stats = startRound(stats, options.savedBest?.read());
-      pickedId = null;
+      pickedIds = [];
       prevX = new Float64Array(round.balls.length);
       prevY = new Float64Array(round.balls.length);
       rememberPositions();
@@ -91,10 +91,10 @@ export function createSession(options: SessionOptions, settings: Config = config
     emit({ type: 'enter', state });
     if (state === 'COUNTDOWN') emit({ type: 'countdown', value: settings.countdownFrom });
     if (state === 'REVEAL' && round) {
-      const correct = pickedId === round.targetId;
-      stats = recordAnswer(stats, correct, settings.score);
+      const answer = foundTargets(round, pickedIds);
+      stats = recordAnswer(stats, answer, settings.score);
       options.savedBest?.record(stats.bestStreak);
-      emit({ type: 'answer', correct });
+      emit({ type: 'answer', correct: isCorrect(answer) });
     }
   };
 
@@ -131,7 +131,10 @@ export function createSession(options: SessionOptions, settings: Config = config
   };
 
   const selectionLive = () =>
-    machine.state === 'SELECTION' && machine.elapsedMs >= settings.settleMs && pickedId === null;
+    machine.state === 'SELECTION' &&
+    machine.elapsedMs >= settings.settleMs &&
+    round !== null &&
+    pickedIds.length < round.targetIds.length;
 
   return {
     get state() {
@@ -149,8 +152,8 @@ export function createSession(options: SessionOptions, settings: Config = config
     get stats() {
       return stats;
     },
-    get pickedId() {
-      return pickedId;
+    get pickedIds() {
+      return pickedIds;
     },
     get selectionLive() {
       return selectionLive();
@@ -167,9 +170,9 @@ export function createSession(options: SessionOptions, settings: Config = config
       return true;
     },
     pick(id) {
-      if (!selectionLive() || !round?.balls.some((ball) => ball.id === id)) return false;
-      pickedId = id;
-      machine.transition('CHECKING');
+      if (!selectionLive() || !round?.balls.some((ball) => ball.id === id) || pickedIds.includes(id)) return false;
+      pickedIds = [...pickedIds, id];
+      if (pickedIds.length === round.targetIds.length) machine.transition('CHECKING');
       return true;
     },
     playAgain() {
@@ -188,6 +191,11 @@ export function createSession(options: SessionOptions, settings: Config = config
       else if (state === 'RETURNING') placeGliding(1);
     },
   };
+}
+
+/** How many of the round's targets are among the picks. */
+export function foundTargets(round: Pick<Round, 'targetIds'>, pickedIds: readonly number[]): Answer {
+  return { found: round.targetIds.filter((id) => pickedIds.includes(id)).length, targets: round.targetIds.length };
 }
 
 /** The tracking timer as shown: whole seconds left of the round's duration, rounded up (SPEC §12). */

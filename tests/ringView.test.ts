@@ -15,7 +15,7 @@ const at = (state: GameState, elapsedMs: number, extra: Partial<Session> = {}) =
   elapsedMs,
   durationMs: null,
   round: null,
-  pickedId: null,
+  pickedIds: [],
   selectionLive: false,
   stats: createStats(),
   ...extra,
@@ -64,7 +64,7 @@ describe('ring, input and reveal views', () => {
     const driven = started();
     const { session } = driven;
     toLiveSelection(driven);
-    const targetId = session.round!.targetId;
+    const targetId = session.round!.targetIds[0];
     session.pick(targetId);
     const checking = arenaView(session, 0)!;
     expect(checking.balls[targetId]).toMatchObject({ look: 'picked', glyph: '', label: '' });
@@ -80,7 +80,7 @@ describe('ring, input and reveal views', () => {
     const driven = started();
     const { session } = driven;
     toLiveSelection(driven);
-    const targetId = session.round!.targetId;
+    const targetId = session.round!.targetIds[0];
     const pick = wrongId(session);
     session.pick(pick);
     driven.runUntil('RESULT');
@@ -103,7 +103,7 @@ describe('names on the ring', () => {
     driven.runUntil('RESULT');
     let next = 2;
     for (const ball of round.balls) {
-      if (ball.id === round.targetId) ball.slot = 1;
+      if (ball.id === round.targetIds[0]) ball.slot = 1;
       else if (ball.id === pick) ball.slot = pickSlot;
       else {
         if (next === pickSlot) next++;
@@ -111,7 +111,7 @@ describe('names on the ring', () => {
       }
     }
     const view = arenaView(session, 0)!;
-    return { target: view.balls[round.targetId], pick: view.balls[pick], all: view.balls };
+    return { target: view.balls[round.targetIds[0]], pick: view.balls[pick], all: view.balls };
   };
 
   it('points names at the center once the balls are on the ring, for every ball alike', () => {
@@ -155,10 +155,10 @@ describe('result card (SPEC §3)', () => {
     const driven = started();
     const { session } = driven;
     toLiveSelection(driven);
-    session.pick(session.round!.targetId);
+    session.pick(session.round!.targetIds[0]);
     expect(resultView(session)).toBeNull(); // not before REVEAL
     driven.runUntil('RESULT');
-    const target = session.round!.balls[session.round!.targetId];
+    const target = session.round!.balls[session.round!.targetIds[0]];
     expect(resultView(session)).toEqual({
       correct: true,
       icon: '🎯',
@@ -181,7 +181,7 @@ describe('result card (SPEC §3)', () => {
     const picked = session.round!.balls[wrongId(session)];
     session.pick(picked.id);
     driven.runUntil('RESULT');
-    const target = session.round!.balls[session.round!.targetId];
+    const target = session.round!.balls[session.round!.targetIds[0]];
     const view = resultView(session)!;
     expect(view).toMatchObject({ correct: false, icon: '👀', headline: 'Not quite!' });
     expect(view.subline).toBe(`You picked ${picked.name} (#${picked.slot}). ${target.name} was #${target.slot}.`);

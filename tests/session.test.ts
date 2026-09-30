@@ -160,17 +160,19 @@ describe('session: settings per round (SPEC §2.6, §16)', () => {
     const first = session.round!;
     expect(first.balls).toHaveLength(12);
 
-    setup = { ballCount: 30, speedFactor: 1.6, trackingMs: 40_000 }; // changed mid-round
+    setup = { ballCount: 30, targetCount: 3, speedFactor: 1.6, trackingMs: 40_000 }; // changed mid-round
     toLiveSelection(driven);
     expect(session.round).toBe(first);
     expect(first.balls).toHaveLength(12);
     expect(first.speedFactor).toBe(1);
-    session.pick(first.targetId);
+    expect(first.targetIds).toHaveLength(1);
+    session.pick(first.targetIds[0]);
     driven.runUntil('RESULT');
 
     session.playAgain();
     expect(session.round!.balls).toHaveLength(30);
     expect(session.round!.speedFactor).toBe(1.6);
+    expect(session.round!.targetIds).toHaveLength(3);
   });
 
   it('moves the balls for the round’s duration, with the final ticks in its last seconds', () => {

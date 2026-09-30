@@ -8,7 +8,7 @@ import { arenaView, countdownView, hudView, targetHighlight, type BallView } fro
 import { started, stepMs, steps, wrongId } from './drive.ts';
 
 const sample = started().session;
-const name = sample.round!.balls[sample.round!.targetId].name;
+const name = sample.round!.balls[sample.round!.targetIds[0]].name;
 
 /** A snapshot of the sample round at a given state and time. */
 const at = (state: GameState, elapsedMs: number, extra: Partial<Session> = {}) => ({
@@ -16,7 +16,7 @@ const at = (state: GameState, elapsedMs: number, extra: Partial<Session> = {}) =
   elapsedMs,
   durationMs: null,
   round: sample.round,
-  pickedId: null,
+  pickedIds: [],
   selectionLive: false,
   stats: createStats(),
   ...extra,
@@ -64,9 +64,9 @@ describe('HUD (SPEC §3, §12)', () => {
   });
 
   it('shows the verdict at REVEAL', () => {
-    const target = sample.round!.targetId;
-    expect(hudView(at('REVEAL', 0, { pickedId: target }))).toMatchObject({ message: 'Nailed it!', icon: '🎯' });
-    expect(hudView(at('REVEAL', 0, { pickedId: wrongId(sample) }))).toMatchObject({ message: 'Not quite!', icon: '👀' });
+    const target = sample.round!.targetIds[0];
+    expect(hudView(at('REVEAL', 0, { pickedIds: [target] }))).toMatchObject({ message: 'Nailed it!', icon: '🎯' });
+    expect(hudView(at('REVEAL', 0, { pickedIds: [wrongId(sample)] }))).toMatchObject({ message: 'Not quite!', icon: '👀' });
   });
 });
 
@@ -157,7 +157,7 @@ describe('fairness: after the fade the target is indistinguishable until REVEAL 
   it('every ball view matches every other, step by step, through selection', () => {
     const driven = started();
     const { session } = driven;
-    const targetId = session.round!.targetId;
+    const targetId = session.round!.targetIds[0];
     const fadeEnds = config.revealHoldMs + config.revealFadeMs;
     let checkedSteps = 0;
     let highlightedSteps = 0;

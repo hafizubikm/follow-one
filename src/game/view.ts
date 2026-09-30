@@ -1,14 +1,14 @@
 // What the HUD, each ball and the result card show, derived from the session. The renderers only
-// see these views, never targetId, so this file is the one place the target is singled out.
+// see these views, never targetIds, so this file is the one place the targets are singled out.
 import { config, type Config } from '../config.ts';
 import { copy, countdownNumerals, fill } from '../copy.ts';
 import { getPack } from '../names/packs.ts';
 import type { Ball, Round } from './round.ts';
-import { accuracyPercent } from './score.ts';
-import { secondsLeft, type Session } from './session.ts';
+import { accuracyPercent, isCorrect } from './score.ts';
+import { foundTargets, secondsLeft, type Session } from './session.ts';
 import type { GameState } from './stateMachine.ts';
 
-type SessionState = Pick<Session, 'state' | 'elapsedMs' | 'durationMs' | 'round' | 'pickedId' | 'selectionLive' | 'stats'>;
+type SessionState = Pick<Session, 'state' | 'elapsedMs' | 'durationMs' | 'round' | 'pickedIds' | 'selectionLive' | 'stats'>;
 
 export interface HudView {
   /** The one instruction on screen; may contain **bold**. Empty while a card speaks instead. */
@@ -82,24 +82,42 @@ export function neutralBall(x: number, y: number, ring = false, ariaLabel = ''):
   return { x, y, look: null, strength: 0, glyph: '', label: '', ring, labelDepth: 0, ariaLabel };
 }
 
-const targetName = (round: Round | null) => (round ? round.balls[round.targetId].name : '');
+/** Names show only in a round with one target; several are followed as a group (SPEC §1, §5). */
+const soleTarget = (round: Round): Ball | null => (round.targetIds.length === 1 ? round.balls[round.targetIds[0]] : null);
+
+/** The HUD lines that speak of the targets: by name for one, by count for several (SPEC §3). */
+function targetLines(s: SessionState): { intro: string; tracking: string; selection: string } {
+  const { hud } = copy;
+  const sole = s.round ? soleTarget(s.round) : null;
+  if (!s.round || sole) {
+    const name = sole?.name ?? '';
+    return { intro: fill(hud.intro, { name }), tracking: fill(hud.tracking, { name }), selection: fill(hud.selection, { name }) };
+  }
+  const k = s.round.targetIds.length;
+  const left = k - s.pickedIds.length;
+  return {
+    intro: fill(hud.several.intro, { k }),
+    tracking: fill(hud.several.tracking, { k }),
+    selection: left === k ? fill(hud.several.selection, { k }) : fill(hud.several.picksLeft, { left }),
+  };
+}
 
 export function hudView(s: SessionState, settings: Config = config): HudView {
   const t = s.elapsedMs;
-  const name = targetName(s.round);
+  const lines = targetLines(s);
   const text = (message: string, icon = ''): HudView => ({ message, icon, timer: null });
 
   switch (s.state) {
     case 'IDLE':
     case 'RESULT':
       return text('');
-    // The countdown runs in the arena; the HUD keeps the target's name up meanwhile.
+    // The countdown runs in the arena; the HUD keeps the intro line up meanwhile.
     case 'TARGET_INTRO':
     case 'COUNTDOWN':
-      return text(fill(copy.hud.intro, { name }));
+      return text(lines.intro);
     case 'TRACKING': {
       const left = s.round ? secondsLeft(t, s.round) : 0;
-      const message = left <= settings.finalWarningS ? copy.hud.finalWarning : fill(copy.hud.tracking, { name });
+      const message = left <= settings.finalWarningS ? copy.hud.finalWarning : lines.tracking;
       return { ...text(message), timer: left };
     }
     case 'TRACKING_COMPLETE':
@@ -107,11 +125,12 @@ export function hudView(s: SessionState, settings: Config = config): HudView {
     case 'RETURNING':
       return text(copy.hud.returning);
     case 'SELECTION':
-      return text(t < settings.settleMs ? copy.hud.returning : fill(copy.hud.selection, { name }));
+      return text(t < settings.settleMs ? copy.hud.returning : lines.selection);
     case 'CHECKING':
       return text(copy.hud.checking);
     case 'REVEAL': {
-      const verdict = s.pickedId === s.round?.targetId ? copy.result.correct : copy.result.incorrect;
+      const correct = s.round !== null && isCorrect(foundTargets(s.round, s.pickedIds));
+      const verdict = correct ? copy.result.correct : copy.result.incorrect;
       return text(verdict.headline, verdict.icon);
     }
   }
@@ -134,7 +153,7 @@ export function countdownView(s: SessionState, settings: Config = config): Count
   }
 }
 
-/** The target's highlight (SPEC §2.1): full through the intro, countdown and revealHoldMs, then a linear fade. */
+/** The targets' highlight (SPEC §2.1): full through the intro, countdown and revealHoldMs, then a linear fade. */
 export function targetHighlight(state: GameState, elapsedMs: number, settings: Config = config): number {
   if (state === 'TARGET_INTRO' || state === 'COUNTDOWN') return 1;
   if (state !== 'TRACKING') return 0;
@@ -153,20 +172,21 @@ const NEIGHBOUR_ARC = 1 / 5;
 function lookOf(ball: Ball, s: SessionState, highlight: number): Look | null {
   const round = s.round;
   if (!round) return null;
-  const isTarget = ball.id === round.targetId;
-  const isPick = ball.id === s.pickedId;
-  if (isTarget && highlight > 0) return { look: 'target', strength: highlight, glyph: copy.glyphs.target, label: ball.name };
-  if (s.state === 'CHECKING' && isPick) return { look: 'picked', strength: 1, glyph: '', label: '' };
+  const isTarget = round.targetIds.includes(ball.id);
+  const isPick = s.pickedIds.includes(ball.id);
+  const sole = soleTarget(round);
+  const label = sole ? ball.name : '';
+  if (isTarget && highlight > 0) return { look: 'target', strength: highlight, glyph: copy.glyphs.target, label };
+  // A pick is outlined from the moment it is made, the same whether it is right or wrong (SPEC §2.7).
+  if ((s.state === 'SELECTION' || s.state === 'CHECKING') && isPick) return { look: 'picked', strength: 1, glyph: '', label: '' };
   if (s.state === 'REVEAL' || s.state === 'RESULT') {
-    const correct = s.pickedId === round.targetId;
-    if (isTarget && correct) return { look: 'revealed-correct', strength: 1, glyph: copy.glyphs.correct, label: ball.name };
-    if (isTarget) return { look: 'revealed-target', strength: 1, glyph: copy.glyphs.target, label: ball.name };
+    if (isTarget && isPick) return { look: 'revealed-correct', strength: 1, glyph: copy.glyphs.correct, label };
+    if (isTarget) return { look: 'revealed-target', strength: 1, glyph: copy.glyphs.target, label };
     if (isPick) {
-      const target = round.balls[round.targetId];
       const count = round.balls.length;
-      const gap = Math.abs((ball.slot ?? 0) - (target.slot ?? 0));
-      const near = Math.min(gap, count - gap) / count <= NEIGHBOUR_ARC;
-      return { look: 'revealed-wrong-pick', strength: 1, glyph: copy.glyphs.wrong, label: ball.name, labelDepth: near ? 1 : 0 };
+      const gap = Math.abs((ball.slot ?? 0) - (sole?.slot ?? 0));
+      const near = sole !== null && Math.min(gap, count - gap) / count <= NEIGHBOUR_ARC;
+      return { look: 'revealed-wrong-pick', strength: 1, glyph: copy.glyphs.wrong, label, labelDepth: near ? 1 : 0 };
     }
   }
   return null;
@@ -201,7 +221,8 @@ export function arenaView(
   const slotted = round.balls.every((ball) => ball.slot !== null);
   const balls = round.balls.map((ball, i): BallView => {
     const { x, y } = positions[i];
-    const ariaLabel = input !== 'off' && ball.slot !== null ? fill(copy.ball, { slot: ball.slot }) : '';
+    const name = s.pickedIds.includes(ball.id) ? copy.ballPicked : copy.ball;
+    const ariaLabel = input !== 'off' && ball.slot !== null ? fill(name, { slot: ball.slot }) : '';
     const look = lookOf(ball, s, highlight);
     if (!look) return neutralBall(x, y, slotted, ariaLabel);
     return { x, y, labelDepth: 0, ...look, ring: slotted, ariaLabel };
@@ -225,15 +246,17 @@ export function arenaView(
 /** The result card (SPEC §3), from REVEAL on. */
 export function resultView(s: SessionState): ResultView | null {
   const round = s.round;
-  if (!round || s.pickedId === null || (s.state !== 'REVEAL' && s.state !== 'RESULT')) return null;
-  const target = round.balls[round.targetId];
-  const picked = round.balls[s.pickedId];
-  const correct = picked.id === target.id;
+  if (!round || s.pickedIds.length === 0 || (s.state !== 'REVEAL' && s.state !== 'RESULT')) return null;
+  const answer = foundTargets(round, s.pickedIds);
   const stats = s.stats;
+  const totals: Totals = [stats.round, stats.score, accuracyPercent(stats), stats.streak, stats.bestStreak];
+  const target = soleTarget(round);
+  if (!target) return cardView(isCorrect(answer), { found: answer.found, k: answer.targets }, totals, true);
+  const picked = round.balls[s.pickedIds[0]];
   return cardView(
-    correct,
+    isCorrect(answer),
     { name: target.name, picked: picked.name, pickedSlot: picked.slot ?? '', targetSlot: target.slot ?? '' },
-    [stats.round, stats.score, accuracyPercent(stats), stats.streak, stats.bestStreak],
+    totals,
   );
 }
 
@@ -241,9 +264,10 @@ export function resultView(s: SessionState): ResultView | null {
 const LARGE_TOTALS = [999, 99_999, 100, 99, 99] as const;
 
 /**
- * The result card at its longest, which the arena leaves room for (SPEC §4): a miss in the highest slots with
- * large totals, once per name with that name in both places. No real miss is wider than the widest of these,
- * and which name renders widest depends on the font, so the sizer stacks them all.
+ * The result card at its longest, which the arena leaves room for (SPEC §4): a one-target miss in the highest
+ * slots with large totals, once per name with that name in both places. No real miss is wider than the widest of
+ * these (the several-target sub-lines are shorter), and which name renders widest depends on the font, so the
+ * sizer stacks them all.
  */
 export function longestResultViews(settings: Config = config): ResultView[] {
   const slot = settings.ballCountMax;
@@ -254,8 +278,13 @@ export function longestResultViews(settings: Config = config): ResultView[] {
 
 type Totals = readonly [round: number, score: number, accuracy: number, streak: number, best: number];
 
-/** `fills`: the sub-line's names and slots. */
-function cardView(correct: boolean, fills: Readonly<Record<string, string | number>>, totals: Totals): ResultView {
+/** `fills`: the sub-line's names and slots, or with `several` targets its counts. */
+function cardView(
+  correct: boolean,
+  fills: Readonly<Record<string, string | number>>,
+  totals: Totals,
+  several = false,
+): ResultView {
   const verdict = correct ? copy.result.correct : copy.result.incorrect;
   const labels = copy.stats;
   const [round, score, accuracy, streak, best] = totals;
@@ -263,7 +292,7 @@ function cardView(correct: boolean, fills: Readonly<Record<string, string | numb
     correct,
     icon: verdict.icon,
     headline: verdict.headline,
-    subline: fill(verdict.subline, fills),
+    subline: fill(several ? verdict.sublineSeveral : verdict.subline, fills),
     stats: [
       { label: labels.round, icon: '', value: String(round) },
       { label: labels.score, icon: '', value: String(score) },

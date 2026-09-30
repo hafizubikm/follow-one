@@ -2,6 +2,9 @@ export const config = {
   ballCount: 15, // default; Settings allows ballCountMin..ballCountMax (§16)
   ballCountMin: 10,
   ballCountMax: 30,
+  targetCount: 1, // default; Settings allows targetCountMin..targetCountMax (§16)
+  targetCountMin: 1,
+  targetCountMax: 5, // at most half of the smallest game
   namePackId: 'greek',
 
   // arena units: radius = 1

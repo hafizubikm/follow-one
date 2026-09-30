@@ -18,9 +18,11 @@ describe('createRound', () => {
       expect(ball.slot).toBeNull();
       expect(ball.r).toBe(r);
     }
-    expect(Number.isInteger(round.targetId)).toBe(true);
-    expect(round.targetId).toBeGreaterThanOrEqual(0);
-    expect(round.targetId).toBeLessThan(n);
+    expect(round.targetIds).toHaveLength(1);
+    const [targetId] = round.targetIds;
+    expect(Number.isInteger(targetId)).toBe(true);
+    expect(targetId).toBeGreaterThanOrEqual(0);
+    expect(targetId).toBeLessThan(n);
   });
 
   it('spawns inside the arena, apart, at spawn speed (SPEC §6)', () => {
@@ -54,10 +56,10 @@ describe('createRound', () => {
       let previous = createRound();
       for (let i = 0; i < rounds; i++) {
         const round = createRound();
-        targetCounts[round.targetId]++;
+        targetCounts[round.targetIds[0]]++;
         const first = round.balls[0];
         firstBallNames.set(first.name, (firstBallNames.get(first.name) ?? 0) + 1);
-        const targetName = round.balls[round.targetId].name;
+        const targetName = round.balls[round.targetIds[0]].name;
         targetNames.set(targetName, (targetNames.get(targetName) ?? 0) + 1);
         const octant = Math.floor(((Math.atan2(first.vy, first.vx) + Math.PI) / (2 * Math.PI)) * 8) % 8;
         directions[octant]++;
@@ -132,7 +134,7 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
       expect(round.ringRadius).toBeCloseTo(config.slotRadius + config.ballRadius - round.ballRadius, 12);
       expect(new Set(round.balls.map((b) => b.name))).toEqual(new Set(pack.names.slice(0, n)));
       expect(round.balls.every((b) => b.r === round.ballRadius && b.slot === null)).toBe(true);
-      expect(round.targetId).toBeLessThan(n);
+      expect(round.targetIds[0]).toBeLessThan(n);
     }
   });
 
@@ -186,7 +188,7 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
     const firstNames = new Map<string, number>();
     for (let i = 0; i < rounds; i++) {
       const round = createRound({ ...defaultSetup, ballCount: n });
-      targets[round.targetId]++;
+      targets[round.targetIds[0]]++;
       firstNames.set(round.balls[0].name, (firstNames.get(round.balls[0].name) ?? 0) + 1);
     }
     // Expected 150 each; σ ≈ 12, so ±6σ practically never fails by chance.
@@ -195,6 +197,81 @@ describe('rounds for every setting (SPEC §5, §6, §16)', () => {
       expect(counts).toHaveLength(n);
       for (const count of counts) expect(Math.abs(count - rounds / n)).toBeLessThan(6 * sigma);
     }
+  });
+});
+
+describe('several targets (SPEC §2.4, §16)', () => {
+  const targetCounts = Array.from({ length: config.targetCountMax - config.targetCountMin + 1 }, (_, i) => config.targetCountMin + i);
+
+  it('draws targetCount distinct balls of the round, for every target count and the smallest and largest games', () => {
+    expect(targetCounts).toEqual([1, 2, 3, 4, 5]);
+    for (const ballCount of [config.ballCountMin, config.ballCount, config.ballCountMax]) {
+      for (const targetCount of targetCounts) {
+        for (let i = 0; i < 50; i++) {
+          const { targetIds } = createRound({ ...defaultSetup, ballCount, targetCount });
+          expect(targetIds).toHaveLength(targetCount);
+          expect(new Set(targetIds).size).toBe(targetCount);
+          for (const id of targetIds) {
+            expect(Number.isInteger(id)).toBe(true);
+            expect(id).toBeGreaterThanOrEqual(0);
+            expect(id).toBeLessThan(ballCount);
+          }
+        }
+      }
+    }
+  });
+
+  it('never asks for more targets than half of the smallest game', () => {
+    expect(config.targetCountMax).toBeLessThanOrEqual(config.ballCountMin / 2);
+    expect(config.targetCountMin).toBe(1);
+    expect(config.targetCount).toBe(1);
+  });
+
+  it('refuses a round with no targets or nothing but targets', () => {
+    for (const targetCount of [0, -1, 1.5, 10, 11]) {
+      expect(() => createRound({ ...defaultSetup, ballCount: 10, targetCount }), String(targetCount)).toThrow(/Cannot follow/);
+    }
+  });
+
+  it('makes every ball a target equally often, and every pair of balls equally often', () => {
+    const ballCount = config.ballCountMin;
+    const targetCount = 3;
+    const rounds = 30_000;
+    const perBall = new Array<number>(ballCount).fill(0);
+    const perPair = new Map<string, number>();
+    const firstDrawn = new Array<number>(ballCount).fill(0);
+    for (let i = 0; i < rounds; i++) {
+      const { targetIds } = createRound({ ...defaultSetup, ballCount, targetCount });
+      firstDrawn[targetIds[0]]++;
+      const sorted = [...targetIds].sort((a, b) => a - b);
+      for (const [a, id] of sorted.entries()) {
+        perBall[id]++;
+        for (const other of sorted.slice(a + 1)) perPair.set(`${id},${other}`, (perPair.get(`${id},${other}`) ?? 0) + 1);
+      }
+    }
+    // Binomial counts; ±6σ practically never fails by chance.
+    const expectShare = (counts: number[], buckets: number, p: number) => {
+      expect(counts).toHaveLength(buckets);
+      const sigma = Math.sqrt(rounds * p * (1 - p));
+      for (const count of counts) expect(Math.abs(count - rounds * p)).toBeLessThan(6 * sigma);
+    };
+    expectShare(perBall, ballCount, targetCount / ballCount); // 3 of 10: 9 000 each
+    expectShare(firstDrawn, ballCount, 1 / ballCount);
+    // 45 pairs, each in C(8,1) of the C(10,3) = 120 sets: 1 in 15.
+    expectShare([...perPair.values()], 45, 1 / 15);
+  });
+
+  it(`picks ${config.targetCountMax} targets uniformly in a game of ${config.ballCountMax}`, () => {
+    const ballCount = config.ballCountMax;
+    const targetCount = config.targetCountMax;
+    const rounds = 6_000;
+    const perBall = new Array<number>(ballCount).fill(0);
+    for (let i = 0; i < rounds; i++) {
+      for (const id of createRound({ ...defaultSetup, ballCount, targetCount }).targetIds) perBall[id]++;
+    }
+    const p = targetCount / ballCount;
+    const sigma = Math.sqrt(rounds * p * (1 - p));
+    for (const count of perBall) expect(Math.abs(count - rounds * p)).toBeLessThan(6 * sigma);
   });
 });
 

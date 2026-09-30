@@ -1,6 +1,6 @@
 # Follow One
 
-Browser cognitive-tracking game: follow one named ball among 15 bouncing balls (10–30 in Settings) for 15 s, then pick it out. Static site, no backend. Solo project, built in phases with Claude Code.
+Browser cognitive-tracking game: follow one named ball (or up to five at once, in Settings) among 15 bouncing balls (10–30 in Settings) for 15 s, then pick it out. Static site, no backend. Solo project, built in phases with Claude Code.
 
 ## Source of truth
 
@@ -32,12 +32,12 @@ Phase 1 creates these scripts. Package manager is npm.
 
 ## Hard rules (fairness — never bend these)
 
-- `physics/` must not reference `targetId`, `isTarget`, or ball names.
-- After the reveal fade in TRACKING, and throughout RETURNING and SELECTION, the target must be indistinguishable: no class, data attribute, z-index, aria text or style that differs from other balls.
+- `physics/` must not reference `targetId`, `targetIds`, `isTarget`, or ball names.
+- After the reveal fade in TRACKING, and throughout RETURNING and SELECTION, every target must be indistinguishable: no class, data attribute, z-index, aria text or style that differs from other balls. A picked ball shows only that it was picked, never whether it is a target.
 - Ring slots are assigned only at the freeze, by angular order (SPEC §7). Balls never spawn on slots.
-- Target, names, spawn positions and velocities are re-randomized every round with `Math.random`; no seeding, no "avoid repeats" logic.
-- Ball input is live only in SELECTION; the first activation locks input.
-- Ball count, speed, duration and colors are read when a round is built and locked until it ends (SPEC §16).
+- Targets, names, spawn positions and velocities are re-randomized every round with `Math.random`; no seeding, no "avoid repeats" logic.
+- Ball input is live only in SELECTION; the round's last pick (the first, with one target) locks input, and every pick is final.
+- Ball count, target count, speed, duration and colors are read when a round is built and locked until it ends (SPEC §16).
 
 ## Workflow
 

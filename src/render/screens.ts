@@ -1,4 +1,4 @@
-import { copy, fill } from '../copy.ts';
+import { copy, fill, targetCountText } from '../copy.ts';
 import type { ResultView } from '../game/view.ts';
 import type { Settings } from '../settings/settings.ts';
 import { el, icon } from './dom.ts';
@@ -10,11 +10,11 @@ export function setScreen(root: HTMLElement, screen: Screen): void {
   if (root.dataset.screen !== screen) root.dataset.screen = screen;
 }
 
-type MetaSettings = Pick<Settings, 'ballCount' | 'trackingMs'>;
+type MetaSettings = Pick<Settings, 'ballCount' | 'targetCount' | 'trackingMs'>;
 
 export interface StartScreen {
   readonly el: HTMLElement;
-  /** The meta line follows the ball-count and duration settings. */
+  /** The meta line follows the ball-count, target-count and duration settings; the tagline and the help sentence the target count. */
   setMeta(settings: MetaSettings): void;
 }
 
@@ -27,18 +27,27 @@ export function createStartScreen(onStart: () => void, settings: MetaSettings): 
   button.type = 'button';
   button.addEventListener('click', onStart);
 
+  const tagline = el('p', 'start-tagline');
   const meta = el('p', 'start-meta');
-  const setMeta = ({ ballCount, trackingMs }: MetaSettings) => {
-    meta.textContent = fill(copy.start.meta, { n: ballCount, seconds: trackingMs / 1000 });
+  const help = el('p', 'start-help');
+  const setMeta = ({ ballCount, targetCount, trackingMs }: MetaSettings) => {
+    meta.textContent = fill(copy.start.meta, {
+      n: ballCount,
+      seconds: trackingMs / 1000,
+      targets: targetCountText(targetCount),
+    });
+    const several = targetCount > 1;
+    tagline.textContent = several ? fill(copy.start.taglineSeveral, { k: targetCount }) : copy.start.tagline;
+    help.textContent = several ? fill(copy.start.helpSeveral, { k: targetCount }) : copy.start.help;
   };
   setMeta(settings);
 
   card.append(
     el('h1', 'start-title', copy.title),
-    el('p', 'start-tagline', copy.start.tagline),
+    tagline,
     meta,
     button,
-    el('p', 'start-help', copy.start.help),
+    help,
   );
   slot.append(card);
   screen.append(slot);
